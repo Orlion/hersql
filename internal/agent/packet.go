@@ -28,23 +28,9 @@ func (c *conn) readPacket() (p *Packet, err error) {
 	payloadLength := uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16
 	payload := make([]byte, payloadLength)
 
-	if payloadLength >= PacketMaxSize {
-		total := 0
-		for {
-			n, err = io.ReadFull(c.rwc, payload[:PacketMaxSize])
-			if err != nil {
-				return
-			}
-			total += n
-			if uint32(total) == payloadLength {
-				break
-			}
-		}
-	} else {
-		_, err = io.ReadFull(c.rwc, payload)
-		if err != nil {
-			return
-		}
+	_, err = io.ReadFull(c.rwc, payload)
+	if err != nil {
+		return
 	}
 
 	p = &Packet{

@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"github.com/Orlion/hersql/internal/mysql"
 	"github.com/Orlion/hersql/pkg/atomicx"
+	"github.com/Orlion/hersql/pkg/util"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -72,8 +74,11 @@ func (agent *Agent) shuttingDown() bool {
 
 func (agent *Agent) newConn(rwc net.Conn) *conn {
 	c := &conn{
-		agent: agent,
-		rwc:   rwc,
+		connId: genConnId(),
+		salt:   util.RandomBuf(20),
+		agent:  agent,
+		rwc:    rwc,
+		status: mysql.SERVER_STATUS_AUTOCOMMIT,
 	}
 
 	agent.incrConnNum()
