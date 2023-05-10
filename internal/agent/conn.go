@@ -1,21 +1,27 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/binary"
 	"github.com/Orlion/hersql/internal/mysql"
 	"net"
 )
 
-var DEFAULT_CAPABILITY uint32 = CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |
-	CLIENT_CONNECT_WITH_DB | CLIENT_PROTOCOL_41 |
-	CLIENT_TRANSACTIONS | CLIENT_SECURE_CONNECTION
+var DEFAULT_CAPABILITY uint32 = mysql.CLIENT_LONG_PASSWORD | mysql.CLIENT_LONG_FLAG |
+	mysql.CLIENT_CONNECT_WITH_DB | mysql.CLIENT_PROTOCOL_41 |
+	mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_SECURE_CONNECTION | mysql.CLIENT_PLUGIN_AUTH
 
 type conn struct {
+	pkg        *mysql.PacketIO
 	connId     uint32
 	salt       []byte
 	agent      *Agent
 	rwc        net.Conn
 	remoteAddr string
 	status     uint16
+	capability uint32
+	user       string
+	db         string
 }
 
 func (c *conn) serve() {
@@ -40,18 +46,31 @@ func (c *conn) serve() {
 			break
 		}
 
-		p, err := c.readPacket()
+		data, err := c.readPacket()
 		if err != nil {
 			// todo: log
 			break
 		}
 
 		// 发送到服务端
-		println(p)
+		println(data)
 	}
 }
 
 func (c *conn) handshake() error {
+	if err := c.writeInitialHandshake(); err != nil {
+		return err
+	}
+
+	if err := c.readHandshakeResponse(); err != nil {
+		return err
+	}
+
+	if err := c.writeOK(nil); err != nil {
+		return err
+	}
+
+	c.pkg.Sequence = 0
 
 	return nil
 }
@@ -104,8 +123,79 @@ func (c *conn) writeInitialHandshake() error {
 	return c.writePacket(data)
 }
 
-func (c *conn) writePacket(data []byte) error {
+func (c *conn) readHandshakeResponse() error {
+	data, err := c.readPacket()
+
+	if err != nil {
+		return err
+	}
+
+	pos := 0
+
+	//capability
+	c.capability = binary.LittleEndian.Uint32(data[:4])
+	pos += 4
+
+	//skip max packet size
+	pos += 4
+
+	//charset, skip, if you want to use another charset, use set names
+	//c.collation = CollationId(data[pos])
+	pos++
+
+	//skip reserved 23[00]
+	pos += 23
+
+	//user name
+	c.user = string(data[pos : pos+bytes.IndexByte(data[pos:], 0)])
+	pos += len(c.user) + 1
+
+	//auth length and auth
+	authLen := int(data[pos])
+	pos++
+
+	// skip auth
+
+	pos += authLen
+
+	if c.capability&mysql.CLIENT_CONNECT_WITH_DB > 0 {
+		if len(data[pos:]) == 0 {
+			return nil
+		}
+
+		db := string(data[pos : pos+bytes.IndexByte(data[pos:], 0)])
+		pos += len(c.db) + 1
+		c.db = db
+	}
+
 	return nil
+}
+
+func (c *conn) writeOK(r *mysql.Result) error {
+	if r == nil {
+		r = &mysql.Result{Status: c.status}
+	}
+	data := make([]byte, 4, 32)
+
+	data = append(data, mysql.OK_HEADER)
+
+	data = append(data, mysql.PutLengthEncodedInt(r.AffectedRows)...)
+	data = append(data, mysql.PutLengthEncodedInt(r.InsertId)...)
+
+	if c.capability&mysql.CLIENT_PROTOCOL_41 > 0 {
+		data = append(data, byte(r.Status), byte(r.Status>>8))
+		data = append(data, 0, 0)
+	}
+
+	return c.writePacket(data)
+}
+
+func (c *conn) writePacket(data []byte) error {
+	return c.pkg.WritePacket(data)
+}
+
+func (c *conn) readPacket() ([]byte, error) {
+	return c.pkg.ReadPacket()
 }
 
 func (c *conn) close() error {

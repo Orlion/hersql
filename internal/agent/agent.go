@@ -3,7 +3,6 @@ package agent
 import (
 	"github.com/Orlion/hersql/internal/mysql"
 	"github.com/Orlion/hersql/pkg/atomicx"
-	"github.com/Orlion/hersql/pkg/util"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -28,8 +27,9 @@ func (agent *Agent) ListenAndServe() (err error) {
 		return
 	}
 
-	go agent.serve()
-	return
+	agent.serve()
+
+	return nil
 }
 
 func (agent *Agent) serve() {
@@ -74,8 +74,9 @@ func (agent *Agent) shuttingDown() bool {
 
 func (agent *Agent) newConn(rwc net.Conn) *conn {
 	c := &conn{
+		pkg:    mysql.NewPacketIO(rwc),
 		connId: genConnId(),
-		salt:   util.RandomBuf(20),
+		salt:   mysql.RandomBuf(20),
 		agent:  agent,
 		rwc:    rwc,
 		status: mysql.SERVER_STATUS_AUTOCOMMIT,

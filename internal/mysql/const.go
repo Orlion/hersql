@@ -1,6 +1,18 @@
 package mysql
 
 const (
+	ServerVersion string = "5.7.1-hersql-0.1"
+	MaxPayloadLen int    = 1<<24 - 1
+)
+
+const (
+	OK_HEADER          byte = 0x00
+	ERR_HEADER         byte = 0xff
+	EOF_HEADER         byte = 0xfe
+	LocalInFile_HEADER byte = 0xfb
+)
+
+const (
 	SERVER_STATUS_IN_TRANS             uint16 = 0x0001
 	SERVER_STATUS_AUTOCOMMIT           uint16 = 0x0002
 	SERVER_MORE_RESULTS_EXISTS         uint16 = 0x0008
@@ -13,10 +25,6 @@ const (
 	SERVER_STATUS_METADATA_CHANGED     uint16 = 0x0400
 	SERVER_QUERY_WAS_SLOW              uint16 = 0x0800
 	SERVER_PS_OUT_PARAMS               uint16 = 0x1000
-)
-
-const (
-	ServerVersion string = "5.7.1-hersql-0.1"
 )
 
 const (
