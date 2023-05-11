@@ -1,8 +1,9 @@
 package mysql
 
 const (
-	ServerVersion string = "5.7.1-hersql-0.1"
-	MaxPayloadLen int    = 1<<24 - 1
+	MinProtocolVersion byte   = 10
+	ServerVersion      string = "5.7.1-hersql-0.1"
+	MaxPayloadLen      int    = 1<<24 - 1
 )
 
 const (

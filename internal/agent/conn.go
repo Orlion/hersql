@@ -22,6 +22,7 @@ type conn struct {
 	capability uint32
 	user       string
 	db         string
+	auth       string
 }
 
 func (c *conn) serve() {
@@ -65,6 +66,8 @@ func (c *conn) handshake() error {
 	if err := c.readHandshakeResponse(); err != nil {
 		return err
 	}
+
+	println("111111", c.user, c.auth, c.db, "111111")
 
 	if err := c.writeOK(nil); err != nil {
 		return err
@@ -154,7 +157,7 @@ func (c *conn) readHandshakeResponse() error {
 	authLen := int(data[pos])
 	pos++
 
-	// skip auth
+	c.auth = string(data[pos : pos+authLen])
 
 	pos += authLen
 
