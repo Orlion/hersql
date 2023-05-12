@@ -1,16 +1,16 @@
-package agents
+package exit
 
 import (
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/Orlion/hersql/internal/mysql"
+	mysql2 "github.com/Orlion/hersql/mysql"
 	"net"
 )
 
 type Conn struct {
-	pkg        *mysql.PacketIO
+	pkg        *mysql2.PacketIO
 	id         uint64
 	rwc        net.Conn
 	salt       []byte
@@ -19,7 +19,7 @@ type Conn struct {
 	user       string
 	password   string
 	db         string
-	collation  mysql.CollationId
+	collation  mysql2.CollationId
 }
 
 func (c *Conn) handshake() error {
@@ -40,11 +40,11 @@ func (c *Conn) readInitialHandshake() error {
 		return err
 	}
 
-	if data[0] == mysql.ERR_HEADER {
+	if data[0] == mysql2.ERR_HEADER {
 		return errors.New("read initial handshake error")
 	}
 
-	if data[0] < mysql.MinProtocolVersion {
+	if data[0] < mysql2.MinProtocolVersion {
 		return fmt.Errorf("invalid protocol version %d, must >= 10", data[0])
 	}
 
@@ -64,7 +64,7 @@ func (c *Conn) readInitialHandshake() error {
 	pos += 2
 
 	if len(data) > pos {
-		//skip server charset
+		//skip exit charset
 		//c.charset = data[pos]
 		pos += 1
 
@@ -81,7 +81,7 @@ func (c *Conn) readInitialHandshake() error {
 
 		// The documentation is ambiguous about the length.
 		// The official Python library uses the fixed length 12
-		// mysql-proxy also use 12
+		// mysql-entrance also use 12
 		// which is not documented but seems to work.
 		c.salt = append(c.salt, data[pos:pos+12]...)
 	}
@@ -90,9 +90,9 @@ func (c *Conn) readInitialHandshake() error {
 }
 
 func (c *Conn) writeHandshakeResponse() error {
-	// Adjust client capability flags based on server support
-	capability := mysql.CLIENT_PROTOCOL_41 | mysql.CLIENT_SECURE_CONNECTION |
-		mysql.CLIENT_LONG_PASSWORD | mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_LONG_FLAG
+	// Adjust exit capability flags based on exit support
+	capability := mysql2.CLIENT_PROTOCOL_41 | mysql2.CLIENT_SECURE_CONNECTION |
+		mysql2.CLIENT_LONG_PASSWORD | mysql2.CLIENT_TRANSACTIONS | mysql2.CLIENT_LONG_FLAG
 
 	capability &= c.capability
 
@@ -107,12 +107,12 @@ func (c *Conn) writeHandshakeResponse() error {
 	length += len(c.user) + 1
 
 	//we only support secure connection
-	auth := mysql.CalcPassword(c.salt, []byte(c.password))
+	auth := mysql2.CalcPassword(c.salt, []byte(c.password))
 
 	length += 1 + len(auth)
 
 	if len(c.db) > 0 {
-		capability |= mysql.CLIENT_CONNECT_WITH_DB
+		capability |= mysql2.CLIENT_CONNECT_WITH_DB
 
 		length += len(c.db) + 1
 	}
@@ -165,4 +165,8 @@ func (c *Conn) readPacket() ([]byte, error) {
 
 func (c *Conn) writePacket(data []byte) error {
 	return c.pkg.WritePacket(data)
+}
+
+func (c *Conn) close() error {
+	return c.rwc.Close()
 }

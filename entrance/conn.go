@@ -1,36 +1,40 @@
-package agent
+package entrance
 
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/Orlion/hersql/internal/mysql"
+	"errors"
+	"github.com/Orlion/hersql/log"
+	mysql2 "github.com/Orlion/hersql/mysql"
+	"io"
 	"net"
 )
 
-var DEFAULT_CAPABILITY uint32 = mysql.CLIENT_LONG_PASSWORD | mysql.CLIENT_LONG_FLAG |
-	mysql.CLIENT_CONNECT_WITH_DB | mysql.CLIENT_PROTOCOL_41 |
-	mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_SECURE_CONNECTION | mysql.CLIENT_PLUGIN_AUTH
+var DEFAULT_CAPABILITY uint32 = mysql2.CLIENT_LONG_PASSWORD | mysql2.CLIENT_LONG_FLAG |
+	mysql2.CLIENT_CONNECT_WITH_DB | mysql2.CLIENT_PROTOCOL_41 |
+	mysql2.CLIENT_TRANSACTIONS | mysql2.CLIENT_SECURE_CONNECTION | mysql2.CLIENT_PLUGIN_AUTH
 
-type conn struct {
-	pkg        *mysql.PacketIO
+type Conn struct {
 	connId     uint32
-	salt       []byte
-	agent      *Agent
+	server     *Server
 	rwc        net.Conn
 	remoteAddr string
+	pkg        *mysql2.PacketIO
+	salt       []byte
 	status     uint16
 	capability uint32
 	user       string
 	db         string
-	auth       string
+	password   string
+	exitConnId uint64
 }
 
-func (c *conn) serve() {
+func (c *Conn) serve() {
 	defer func() {
 		c.close()
-		c.agent.decrConnNum()
+		c.server.decrConnNum()
 		if err := recover(); err != nil {
-			// todo: log
+			log.Errorf("Conn serve panic, err: %v", err)
 		}
 	}()
 
@@ -43,22 +47,32 @@ func (c *conn) serve() {
 	}
 
 	for {
-		if c.agent.shuttingDown() {
+		if c.server.shuttingDown() {
 			break
 		}
 
 		data, err := c.readPacket()
 		if err != nil {
-			// todo: log
+			if errors.Is(err, io.EOF) {
+				log.Infof("Conn from %s closed", c.remoteAddr)
+			} else {
+				log.Errorf("Conn read packet from %s error: %s", c.remoteAddr, err.Error())
+			}
 			break
 		}
 
 		// 发送到服务端
-		println(data)
+		if responseData, err := c.exitTransport(data); err != nil {
+			log.Errorf("transport error: %s", err.Error())
+		} else {
+			if err = c.writePacket(responseData); err != nil {
+				log.Errorf("write packet to %s error: %s", c.remoteAddr, err.Error())
+			}
+		}
 	}
 }
 
-func (c *conn) handshake() error {
+func (c *Conn) handshake() error {
 	if err := c.writeInitialHandshake(); err != nil {
 		return err
 	}
@@ -67,7 +81,9 @@ func (c *conn) handshake() error {
 		return err
 	}
 
-	println("111111", c.user, c.auth, c.db, "111111")
+	if err := c.exitConnect(); err != nil {
+		return err
+	}
 
 	if err := c.writeOK(nil); err != nil {
 		return err
@@ -78,15 +94,14 @@ func (c *conn) handshake() error {
 	return nil
 }
 
-func (c *conn) writeInitialHandshake() error {
-	// 服务端给客户端发一个初始化握手包
+func (c *Conn) writeInitialHandshake() error {
 	data := make([]byte, 4, 128)
 
 	//protocol version Always 10
 	data = append(data, 10)
 
-	//server version[00]
-	data = append(data, mysql.ServerVersion...)
+	//exit version[00]
+	data = append(data, mysql2.ServerVersion...)
 	data = append(data, 0)
 
 	// thread id
@@ -102,7 +117,7 @@ func (c *conn) writeInitialHandshake() error {
 	data = append(data, byte(DEFAULT_CAPABILITY), byte(DEFAULT_CAPABILITY>>8))
 
 	//charset, utf-8 default
-	data = append(data, uint8(mysql.DEFAULT_COLLATION_ID))
+	data = append(data, uint8(mysql2.DEFAULT_COLLATION_ID))
 
 	//status
 	data = append(data, byte(c.status), byte(c.status>>8))
@@ -126,7 +141,7 @@ func (c *conn) writeInitialHandshake() error {
 	return c.writePacket(data)
 }
 
-func (c *conn) readHandshakeResponse() error {
+func (c *Conn) readHandshakeResponse() error {
 	data, err := c.readPacket()
 
 	if err != nil {
@@ -157,11 +172,11 @@ func (c *conn) readHandshakeResponse() error {
 	authLen := int(data[pos])
 	pos++
 
-	c.auth = string(data[pos : pos+authLen])
+	_ = string(data[pos : pos+authLen]) // todo
 
 	pos += authLen
 
-	if c.capability&mysql.CLIENT_CONNECT_WITH_DB > 0 {
+	if c.capability&mysql2.CLIENT_CONNECT_WITH_DB > 0 {
 		if len(data[pos:]) == 0 {
 			return nil
 		}
@@ -174,18 +189,18 @@ func (c *conn) readHandshakeResponse() error {
 	return nil
 }
 
-func (c *conn) writeOK(r *mysql.Result) error {
+func (c *Conn) writeOK(r *mysql2.Result) error {
 	if r == nil {
-		r = &mysql.Result{Status: c.status}
+		r = &mysql2.Result{Status: c.status}
 	}
 	data := make([]byte, 4, 32)
 
-	data = append(data, mysql.OK_HEADER)
+	data = append(data, mysql2.OK_HEADER)
 
-	data = append(data, mysql.PutLengthEncodedInt(r.AffectedRows)...)
-	data = append(data, mysql.PutLengthEncodedInt(r.InsertId)...)
+	data = append(data, mysql2.PutLengthEncodedInt(r.AffectedRows)...)
+	data = append(data, mysql2.PutLengthEncodedInt(r.InsertId)...)
 
-	if c.capability&mysql.CLIENT_PROTOCOL_41 > 0 {
+	if c.capability&mysql2.CLIENT_PROTOCOL_41 > 0 {
 		data = append(data, byte(r.Status), byte(r.Status>>8))
 		data = append(data, 0, 0)
 	}
@@ -193,15 +208,15 @@ func (c *conn) writeOK(r *mysql.Result) error {
 	return c.writePacket(data)
 }
 
-func (c *conn) writePacket(data []byte) error {
+func (c *Conn) writePacket(data []byte) error {
 	return c.pkg.WritePacket(data)
 }
 
-func (c *conn) readPacket() ([]byte, error) {
+func (c *Conn) readPacket() ([]byte, error) {
 	return c.pkg.ReadPacket()
 }
 
-func (c *conn) close() error {
+func (c *Conn) close() error {
 	err := c.rwc.Close()
 	return err
 }
