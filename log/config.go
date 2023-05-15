@@ -10,22 +10,22 @@ type Config struct {
 	Compress    bool   `yaml:"compress"`
 }
 
-func withDefaultConf(config *Config) *Config {
-	if config == nil {
-		config = &Config{
+func withDefaultConf(conf *Config) *Config {
+	if conf == nil {
+		conf = &Config{
 			StdoutLevel: "info",
 		}
 
-		return config
+		return conf
 	}
 
-	if config.StdoutLevel == "" {
-		config.StdoutLevel = "info"
+	if conf.StdoutLevel == "" {
+		conf.StdoutLevel = "info"
 	}
 
-	if config.Level == "" {
-		config.Level = "error"
+	if conf.Level == "" {
+		conf.Level = "error"
 	}
 
-	return config
+	return conf
 }

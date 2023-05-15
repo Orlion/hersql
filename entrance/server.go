@@ -3,14 +3,15 @@ package entrance
 import (
 	"context"
 	"errors"
-	"github.com/Orlion/hersql/log"
-	"github.com/Orlion/hersql/mysql"
-	"github.com/Orlion/hersql/pkg/atomicx"
 	"net"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Orlion/hersql/log"
+	"github.com/Orlion/hersql/mysql"
+	"github.com/Orlion/hersql/pkg/atomicx"
 )
 
 var (
@@ -24,27 +25,31 @@ func genConnId() uint32 {
 }
 
 type Server struct {
-	Addr         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	inShutdown   atomicx.Bool
-	mu           sync.Mutex
-	listener     net.Listener
-	doneChan     chan struct{}
-	connNum      int64
-	httpClient   *http.Client
-	httpHost     string
+	mu             sync.Mutex
+	listener       net.Listener
+	connNum        int64
+	inShutdown     atomicx.Bool
+	doneChan       chan struct{}
+	Addr           string
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
+	exitServerAddr string
+	exitClient     *http.Client
 }
 
-func NewServer(conf *Config) *Server {
-	return &Server{
-		Addr:         conf.Addr,
-		ReadTimeout:  time.Duration(conf.ReadTimeoutMillis) * time.Millisecond,
-		WriteTimeout: time.Duration(conf.WriteTimeoutMillis) * time.Millisecond,
-		httpClient: &http.Client{
-			Timeout: time.Duration(conf.HttpTimeoutMillis) * time.Millisecond,
-		},
+func NewServer(conf *Config) (*Server, error) {
+	if err := withDefaultConf(conf); err != nil {
+		return nil, err
 	}
+	return &Server{
+		Addr:           conf.Addr,
+		ReadTimeout:    time.Duration(conf.ReadTimeoutMillis) * time.Millisecond,
+		WriteTimeout:   time.Duration(conf.WriteTimeoutMillis) * time.Millisecond,
+		exitServerAddr: conf.ExitServerAddr,
+		exitClient: &http.Client{
+			Timeout: time.Duration(conf.ExitServerTimeoutMillis) * time.Millisecond,
+		},
+	}, nil
 }
 
 func (s *Server) ListenAndServe() (err error) {
@@ -106,7 +111,7 @@ func (s *Server) serve() error {
 			default:
 			}
 
-			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+			if _, ok := err.(net.Error); ok {
 				if tempDelay == 0 {
 					tempDelay = 5 * time.Millisecond
 				} else {
@@ -122,11 +127,12 @@ func (s *Server) serve() error {
 
 			return err
 		}
-
+		s.incrConnNum()
 		c := s.newConn(rw)
 		log.Debugf("server new Conn from %s", rw.RemoteAddr().String())
 		go func() {
 			c.serve()
+			s.decrConnNum()
 		}()
 	}
 }
@@ -144,8 +150,6 @@ func (s *Server) newConn(rwc net.Conn) *Conn {
 		rwc:    rwc,
 		status: mysql.SERVER_STATUS_AUTOCOMMIT,
 	}
-
-	s.incrConnNum()
 
 	return c
 }

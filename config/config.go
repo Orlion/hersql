@@ -2,11 +2,12 @@ package config
 
 import (
 	"errors"
+	"io/ioutil"
+
 	"github.com/Orlion/hersql/entrance"
 	"github.com/Orlion/hersql/exit"
 	"github.com/Orlion/hersql/log"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 )
 
 type EntranceConfig struct {
@@ -19,7 +20,7 @@ type ExitConfig struct {
 	Server *exit.Config `yaml:"server"`
 }
 
-func ParseEntranceConfig(filename string) (config *EntranceConfig, err error) {
+func ParseEntranceConfig(filename string) (conf *EntranceConfig, err error) {
 	if filename == "" {
 		err = errors.New("please enter a configuration file name")
 		return
@@ -30,8 +31,8 @@ func ParseEntranceConfig(filename string) (config *EntranceConfig, err error) {
 		return
 	}
 
-	config = new(EntranceConfig)
-	err = yaml.Unmarshal(fileData, config)
+	conf = new(EntranceConfig)
+	err = yaml.Unmarshal(fileData, conf)
 	if err != nil {
 		return
 	}
@@ -39,7 +40,7 @@ func ParseEntranceConfig(filename string) (config *EntranceConfig, err error) {
 	return
 }
 
-func ParseExitConfig(filename string) (config *ExitConfig, err error) {
+func ParseExitConfig(filename string) (conf *ExitConfig, err error) {
 	if filename == "" {
 		err = errors.New("please enter a configuration file name")
 		return
@@ -50,8 +51,8 @@ func ParseExitConfig(filename string) (config *ExitConfig, err error) {
 		return
 	}
 
-	config = new(ExitConfig)
-	err = yaml.Unmarshal(fileData, config)
+	conf = new(ExitConfig)
+	err = yaml.Unmarshal(fileData, conf)
 	if err != nil {
 		return
 	}

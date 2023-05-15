@@ -10,14 +10,14 @@ import (
 
 var logger *zap.SugaredLogger
 
-func Init(config *Config) {
-	config = withDefaultConf(config)
+func Init(conf *Config) {
+	conf = withDefaultConf(conf)
 
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
-	level, err := zapcore.ParseLevel(config.StdoutLevel)
+	level, err := zapcore.ParseLevel(conf.StdoutLevel)
 	if err != nil {
 		level = zapcore.InfoLevel
 	}
@@ -25,8 +25,8 @@ func Init(config *Config) {
 	cores := make([]zapcore.Core, 1)
 	cores[0] = zapcore.NewCore(zapcore.NewConsoleEncoder(encoderConfig), zapcore.AddSync(os.Stdout), level)
 
-	if config.Filename != "" {
-		level, err = zapcore.ParseLevel(config.Level)
+	if conf.Filename != "" {
+		level, err = zapcore.ParseLevel(conf.Level)
 		if err != nil {
 			level = zapcore.ErrorLevel
 		}
@@ -35,11 +35,11 @@ func Init(config *Config) {
 			return lev >= level
 		})
 		infoFileWriteSyncer := zapcore.AddSync(&lumberjack.Logger{
-			Filename:   config.Filename,
-			MaxSize:    config.MaxSize,
-			MaxAge:     config.MaxAge,
-			MaxBackups: config.MaxBackups,
-			Compress:   config.Compress,
+			Filename:   conf.Filename,
+			MaxSize:    conf.MaxSize,
+			MaxAge:     conf.MaxAge,
+			MaxBackups: conf.MaxBackups,
+			Compress:   conf.Compress,
 		})
 
 		encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder

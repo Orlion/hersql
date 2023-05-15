@@ -5,21 +5,24 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	mysql2 "github.com/Orlion/hersql/mysql"
 	"net"
+	"time"
+
+	"github.com/Orlion/hersql/mysql"
 )
 
 type Conn struct {
-	pkg        *mysql2.PacketIO
 	id         uint64
+	createAt   time.Time
+	pkg        *mysql.PacketIO
 	rwc        net.Conn
 	salt       []byte
 	capability uint32
 	status     uint16
 	user       string
-	password   string
-	db         string
-	collation  mysql2.CollationId
+	passwd     string
+	dbname     string
+	collation  mysql.CollationId
 }
 
 func (c *Conn) handshake() error {
@@ -40,11 +43,11 @@ func (c *Conn) readInitialHandshake() error {
 		return err
 	}
 
-	if data[0] == mysql2.ERR_HEADER {
+	if data[0] == mysql.ERR_HEADER {
 		return errors.New("read initial handshake error")
 	}
 
-	if data[0] < mysql2.MinProtocolVersion {
+	if data[0] < mysql.MinProtocolVersion {
 		return fmt.Errorf("invalid protocol version %d, must >= 10", data[0])
 	}
 
@@ -91,8 +94,8 @@ func (c *Conn) readInitialHandshake() error {
 
 func (c *Conn) writeHandshakeResponse() error {
 	// Adjust exit capability flags based on exit support
-	capability := mysql2.CLIENT_PROTOCOL_41 | mysql2.CLIENT_SECURE_CONNECTION |
-		mysql2.CLIENT_LONG_PASSWORD | mysql2.CLIENT_TRANSACTIONS | mysql2.CLIENT_LONG_FLAG
+	capability := mysql.CLIENT_PROTOCOL_41 | mysql.CLIENT_SECURE_CONNECTION |
+		mysql.CLIENT_LONG_PASSWORD | mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_LONG_FLAG
 
 	capability &= c.capability
 
@@ -107,14 +110,14 @@ func (c *Conn) writeHandshakeResponse() error {
 	length += len(c.user) + 1
 
 	//we only support secure connection
-	auth := mysql2.CalcPassword(c.salt, []byte(c.password))
+	auth := mysql.CalcPassword(c.salt, []byte(c.passwd))
 
 	length += 1 + len(auth)
 
-	if len(c.db) > 0 {
-		capability |= mysql2.CLIENT_CONNECT_WITH_DB
+	if len(c.dbname) > 0 {
+		capability |= mysql.CLIENT_CONNECT_WITH_DB
 
-		length += len(c.db) + 1
+		length += len(c.dbname) + 1
 	}
 
 	c.capability = capability
@@ -151,8 +154,8 @@ func (c *Conn) writeHandshakeResponse() error {
 	pos += 1 + copy(data[pos+1:], auth)
 
 	// db [null terminated string]
-	if len(c.db) > 0 {
-		pos += copy(data[pos:], c.db)
+	if len(c.dbname) > 0 {
+		pos += copy(data[pos:], c.dbname)
 		//data[pos] = 0x00
 	}
 

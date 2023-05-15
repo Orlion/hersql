@@ -6,43 +6,45 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"sync/atomic"
+	"time"
 )
 
-var connId uint64
-
-func genConnId() uint64 {
-	return atomic.AddUint64(&connId, 1)
-}
-
-type Handler struct {
-	conns map[uint64]*Conn
-}
-
-func NewHandler() *Handler {
-	return &Handler{
-		conns: make(map[uint64]*Conn),
-	}
-}
-
-func (h *Handler) HandleConnect(w http.ResponseWriter, r *http.Request) {
-	host := r.PostFormValue("host")
-	db := r.PostFormValue("db")
+func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
+	addr := r.PostFormValue("addr")
+	dbname := r.PostFormValue("dbname")
 	user := r.PostFormValue("user")
-	password := r.PostFormValue("password")
+	passwd := r.PostFormValue("passwd")
 
-	connId, err := h.newConn(host, db, user, password)
+	rwc, err := net.Dial("tcp", addr)
 	if err != nil {
 		responseFail(w, fmt.Sprintf("exit create conn failed: %s", err.Error()))
 		return
 	}
 
+	conn := &Conn{
+		rwc:      rwc,
+		createAt: time.Now(),
+		dbname:   dbname,
+		user:     user,
+		passwd:   passwd,
+	}
+	if err := conn.handshake(); err != nil {
+		responseFail(w, fmt.Sprintf("exit create conn failed: %s", err.Error()))
+		return
+	}
+
+	connId := s.addConn(conn)
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, connId)
 	responseSuccess(w, b)
 }
 
-func (h *Handler) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
+func (s *Server) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
+	runid := r.PostFormValue("runid")
+	if runid != s.runid {
+		responseFail(w, fmt.Sprintf("connId %s parse error: %s", connIdStr, err.Error()))
+		return
+	}
 	connIdStr := r.PostFormValue("connId")
 	connId, err := strconv.ParseUint(connIdStr, 10, 64)
 	if err != nil {
@@ -50,7 +52,7 @@ func (h *Handler) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conn, exists := h.conns[connId]
+	conn, exists := s.conns[connId]
 	if !exists {
 		responseFail(w, fmt.Sprintf("connId %d not found", connId))
 		return
@@ -59,10 +61,10 @@ func (h *Handler) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 	if err = conn.close(); err != nil {
 		// todo: log
 	}
-	delete(h.conns, connId)
+	delete(s.conns, connId)
 }
 
-func (h *Handler) HandleTransport(w http.ResponseWriter, r *http.Request) {
+func (h *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 	connIdStr := r.PostFormValue("connId")
 	connId, err := strconv.ParseUint(connIdStr, 10, 64)
 	if err != nil {
@@ -89,26 +91,4 @@ func (h *Handler) HandleTransport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseSuccess(w, responsePacket)
-}
-
-func (h *Handler) newConn(host, db, user, password string) (uint64, error) {
-	rwc, err := net.Dial("tcp", host)
-	if err != nil {
-		return 0, err
-	}
-
-	connId := genConnId()
-	conn := &Conn{
-		id:       connId,
-		rwc:      rwc,
-		db:       db,
-		user:     user,
-		password: password,
-	}
-
-	if err := conn.handshake(); err != nil {
-		return 0, err
-	}
-
-	return connId, nil
 }

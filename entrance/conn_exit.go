@@ -4,18 +4,21 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"github.com/Orlion/hersql/exit"
+	"fmt"
 	"io"
 	"net/url"
 	"strconv"
+
+	"github.com/Orlion/hersql/exit"
+	"github.com/Orlion/hersql/log"
 )
 
 func (c *Conn) exitConnect() error {
 	form := url.Values{}
-	form.Set("host", c.user)
-	form.Set("db", c.db)
-	form.Set("user", c.user)
-	form.Set("password", c.user)
+	form.Set("addr", c.dsn.Addr)
+	form.Set("dbname", c.dsn.DBName)
+	form.Set("user", c.dsn.User)
+	form.Set("passwd", c.dsn.Passwd)
 
 	resp, err := c.callExit("/connect", form)
 	if err != nil {
@@ -32,20 +35,24 @@ func (c *Conn) exitConnect() error {
 }
 
 func (c *Conn) callExit(path string, form url.Values) (*exit.Response, error) {
-	resp, err := c.server.httpClient.PostForm(c.server.httpHost+path, form)
+	var (
+		body []byte
+	)
+	defer log.Debugf("%s callExit%s form: %s, resp.body: %s", c.name(), path, form.Encode(), string(body))
+	resp, err := c.server.exitClient.PostForm(c.server.exitServerAddr+path, form)
 	if err != nil {
 		return nil, err
 	}
 
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	exitResponse := new(exit.Response)
 	if err := json.Unmarshal(body, exitResponse); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resp body json unmarshal error: %w", err)
 	}
 
 	return exitResponse, nil
@@ -69,7 +76,7 @@ func (c *Conn) exitDisconnect() error {
 func (c *Conn) exitTransport(data []byte) ([]byte, error) {
 	form := url.Values{}
 	form.Set("data", string(data))
-	resp, err := c.server.httpClient.PostForm(c.server.httpHost+"/transport", form)
+	resp, err := c.server.exitClient.PostForm(c.server.exitServerAddr+"/transport", form)
 	if err != nil {
 		return nil, err
 	}

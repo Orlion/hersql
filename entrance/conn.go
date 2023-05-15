@@ -4,37 +4,41 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/Orlion/hersql/log"
-	mysql2 "github.com/Orlion/hersql/mysql"
+	"fmt"
 	"io"
 	"net"
+
+	"github.com/Orlion/hersql/log"
+	"github.com/Orlion/hersql/mysql"
+	mysql_driver "github.com/go-sql-driver/mysql"
 )
 
-var DEFAULT_CAPABILITY uint32 = mysql2.CLIENT_LONG_PASSWORD | mysql2.CLIENT_LONG_FLAG |
-	mysql2.CLIENT_CONNECT_WITH_DB | mysql2.CLIENT_PROTOCOL_41 |
-	mysql2.CLIENT_TRANSACTIONS | mysql2.CLIENT_SECURE_CONNECTION | mysql2.CLIENT_PLUGIN_AUTH
+var DEFAULT_CAPABILITY uint32 = mysql.CLIENT_LONG_PASSWORD | mysql.CLIENT_LONG_FLAG |
+	mysql.CLIENT_CONNECT_WITH_DB | mysql.CLIENT_PROTOCOL_41 |
+	mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_SECURE_CONNECTION | mysql.CLIENT_PLUGIN_AUTH
 
 type Conn struct {
 	connId     uint32
 	server     *Server
 	rwc        net.Conn
 	remoteAddr string
-	pkg        *mysql2.PacketIO
+	pkg        *mysql.PacketIO
 	salt       []byte
 	status     uint16
 	capability uint32
-	user       string
-	db         string
-	password   string
 	exitConnId uint64
+	dsn        *mysql_driver.Config
 }
 
 func (c *Conn) serve() {
 	defer func() {
-		c.close()
-		c.server.decrConnNum()
+		if err := c.close(); err != nil {
+			log.Errorf("%s close error: %s", c.name(), err.Error())
+		} else {
+			log.Infof("%s closed", c.name())
+		}
 		if err := recover(); err != nil {
-			log.Errorf("Conn serve panic, err: %v", err)
+			log.Errorf("%s serve panic, err: %v", c.name(), err)
 		}
 	}()
 
@@ -42,9 +46,11 @@ func (c *Conn) serve() {
 
 	err := c.handshake()
 	if err != nil {
-		// todo: log
+		log.Errorf("%s handshake error: %s", c.name(), err.Error())
 		return
 	}
+
+	log.Info("%s handshake success", c.name())
 
 	for {
 		if c.server.shuttingDown() {
@@ -54,39 +60,43 @@ func (c *Conn) serve() {
 		data, err := c.readPacket()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				log.Infof("Conn from %s closed", c.remoteAddr)
+				log.Infof("%s closed", c.name())
 			} else {
-				log.Errorf("Conn read packet from %s error: %s", c.remoteAddr, err.Error())
+				log.Errorf("%s read packet error: %s", c.name(), err.Error())
 			}
 			break
 		}
 
 		// 发送到服务端
 		if responseData, err := c.exitTransport(data); err != nil {
-			log.Errorf("transport error: %s", err.Error())
+			log.Errorf("%s transport error: %s", c.name(), err.Error())
 		} else {
 			if err = c.writePacket(responseData); err != nil {
-				log.Errorf("write packet to %s error: %s", c.remoteAddr, err.Error())
+				log.Errorf("%s write packet error: %s", c.name(), err.Error())
 			}
 		}
 	}
+
 }
 
 func (c *Conn) handshake() error {
 	if err := c.writeInitialHandshake(); err != nil {
-		return err
+		return fmt.Errorf("writeInitialHandshake error: %w", err)
 	}
 
 	if err := c.readHandshakeResponse(); err != nil {
-		return err
+		c.writeError(err)
+		return fmt.Errorf("readHandshakeResponse error: %w", err)
 	}
 
 	if err := c.exitConnect(); err != nil {
+		err = fmt.Errorf("exitConnect error: %w", err)
+		c.writeError(err)
 		return err
 	}
 
 	if err := c.writeOK(nil); err != nil {
-		return err
+		return fmt.Errorf("writeOK error: %w", err)
 	}
 
 	c.pkg.Sequence = 0
@@ -101,7 +111,7 @@ func (c *Conn) writeInitialHandshake() error {
 	data = append(data, 10)
 
 	//exit version[00]
-	data = append(data, mysql2.ServerVersion...)
+	data = append(data, mysql.ServerVersion...)
 	data = append(data, 0)
 
 	// thread id
@@ -117,7 +127,7 @@ func (c *Conn) writeInitialHandshake() error {
 	data = append(data, byte(DEFAULT_CAPABILITY), byte(DEFAULT_CAPABILITY>>8))
 
 	//charset, utf-8 default
-	data = append(data, uint8(mysql2.DEFAULT_COLLATION_ID))
+	data = append(data, uint8(mysql.DEFAULT_COLLATION_ID))
 
 	//status
 	data = append(data, byte(c.status), byte(c.status>>8))
@@ -165,45 +175,74 @@ func (c *Conn) readHandshakeResponse() error {
 	pos += 23
 
 	//user name
-	c.user = string(data[pos : pos+bytes.IndexByte(data[pos:], 0)])
-	pos += len(c.user) + 1
+	user := string(data[pos : pos+bytes.IndexByte(data[pos:], 0)])
+	pos += len(user) + 1
 
 	//auth length and auth
 	authLen := int(data[pos])
 	pos++
 
-	_ = string(data[pos : pos+authLen]) // todo
-
 	pos += authLen
 
-	if c.capability&mysql2.CLIENT_CONNECT_WITH_DB > 0 {
+	if c.capability&mysql.CLIENT_CONNECT_WITH_DB > 0 {
 		if len(data[pos:]) == 0 {
-			return nil
+			return errors.New(`the database must be specified as a dsn in the format "[username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]"`)
 		}
 
-		db := string(data[pos : pos+bytes.IndexByte(data[pos:], 0)])
-		pos += len(c.db) + 1
-		c.db = db
+		dsnStr := string(data[pos : pos+bytes.IndexByte(data[pos:], 0)])
+		log.Debugf("%s handshake response's dsn is %s", c.name(), dsnStr)
+
+		c.dsn, err = mysql_driver.ParseDSN(dsnStr)
+		if err != nil {
+			return fmt.Errorf(`the database failed to be parsed as a dsn, error: %w. the correct format is "[username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]"`, err)
+		}
+		log.Infof("%s dsn dsn is assigned as addr: %s, user: %s, password: %s, dbname: %s", c.name(), c.dsn.Addr, c.dsn.User, c.dsn.Passwd, c.dsn.DBName)
+
+		pos += len(dsnStr) + 1
+	} else {
+		return errors.New(`the database must be specified as a dsn in the format "[username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]"`)
 	}
 
 	return nil
 }
 
-func (c *Conn) writeOK(r *mysql2.Result) error {
+func (c *Conn) writeOK(r *mysql.Result) error {
 	if r == nil {
-		r = &mysql2.Result{Status: c.status}
+		r = &mysql.Result{Status: c.status}
 	}
 	data := make([]byte, 4, 32)
 
-	data = append(data, mysql2.OK_HEADER)
+	data = append(data, mysql.OK_HEADER)
 
-	data = append(data, mysql2.PutLengthEncodedInt(r.AffectedRows)...)
-	data = append(data, mysql2.PutLengthEncodedInt(r.InsertId)...)
+	data = append(data, mysql.PutLengthEncodedInt(r.AffectedRows)...)
+	data = append(data, mysql.PutLengthEncodedInt(r.InsertId)...)
 
-	if c.capability&mysql2.CLIENT_PROTOCOL_41 > 0 {
+	if c.capability&mysql.CLIENT_PROTOCOL_41 > 0 {
 		data = append(data, byte(r.Status), byte(r.Status>>8))
 		data = append(data, 0, 0)
 	}
+
+	return c.writePacket(data)
+}
+
+func (c *Conn) writeError(e error) error {
+	var m *mysql.SqlError
+	var ok bool
+	if m, ok = e.(*mysql.SqlError); !ok {
+		m = mysql.NewError(mysql.ER_UNKNOWN_ERROR, e.Error())
+	}
+
+	data := make([]byte, 4, 16+len(m.Message))
+
+	data = append(data, mysql.ERR_HEADER)
+	data = append(data, byte(m.Code), byte(m.Code>>8))
+
+	if c.capability&mysql.CLIENT_PROTOCOL_41 > 0 {
+		data = append(data, '#')
+		data = append(data, m.State...)
+	}
+
+	data = append(data, m.Message...)
 
 	return c.writePacket(data)
 }
@@ -219,4 +258,8 @@ func (c *Conn) readPacket() ([]byte, error) {
 func (c *Conn) close() error {
 	err := c.rwc.Close()
 	return err
+}
+
+func (c *Conn) name() string {
+	return fmt.Sprintf("conn[id: %d, from %s, exitConnid: %d]", c.connId, c.remoteAddr, c.exitConnId)
 }

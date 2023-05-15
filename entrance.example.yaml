@@ -1,0 +1,35 @@
+server:
+  # The address that the cat-agent server listens to. If it listens to tcp, the format is ip:port, for example, 127.0.0.1:2380
+  addr: 127.0.0.1:3306
+  # Read from connection timeout milliseconds, It defaults to 5000 milliseconds.
+  # It should be the maximum execution time of the script if the client is PHP-FPM.
+  read_timeout_millis: 5000
+  # Write from connection timeout milliseconds, It defaults to 5000 milliseconds.
+  write_timeout_millis: 5000
+  exit_server_addr: http://127.0.0.1:8080
+
+log:
+  # Stdout log level debug/info/warn/error/dpanic/panic/fatal
+  stdout_level: debug
+  # File log level
+  level: error
+  # filename is the file to write logs to.  Backup log files will be retained 
+  # in the same directory.  It uses <processname>-lumberjack.log in 
+  # os.TempDir() if empty.
+  filename: ./storage/entrance.log
+  # maxsize is the maximum size in megabytes of the log file before it gets 
+  # rotated. It defaults to 100 megabytes.
+  maxsize: 100
+  # maxage is the maximum number of days to retain old log files based on the 
+  # timestamp encoded in their filename.  Note that a day is defined as 24 
+  # hours and may not exactly correspond to calendar days due to daylight 
+  # savings, leap seconds, etc. The default is not to remove old log files 
+  # based on age.
+  maxage: 168
+  # maxbackups is the maximum number of old log files to retain.  The default 
+  # is to retain all old log files (though MaxAge may still cause them to get 
+  # deleted.)
+  maxbackups: 3
+  # compress determines if the rotated log files should be compressed 
+  # using gzip. The default is not to perform compression.
+  compress: false
