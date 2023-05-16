@@ -50,6 +50,15 @@ func (s *Server) ListenAndServe() error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	log.Info("server shutdown...")
 	err := s.http.Shutdown(ctx)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for connId, conn := range s.conns {
+		delete(s.conns, connId)
+		conn.close()
+	}
+
 	return err
 }
 

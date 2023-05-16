@@ -14,7 +14,7 @@ import (
 	"github.com/Orlion/hersql/log"
 )
 
-var configFile *string = flag.String("config", "", "hersql exit config file")
+var configFile *string = flag.String("conf", "", "hersql exit config file")
 
 func main() {
 	flag.Parse()

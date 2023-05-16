@@ -26,12 +26,18 @@ type Conn struct {
 	salt       []byte
 	status     uint16
 	capability uint32
-	exitConnId uint64
 	dsn        *mysql_driver.Config
+	exitRunid  string
+	exitConnId uint64
 }
 
 func (c *Conn) serve() {
 	defer func() {
+		if c.exitConnId > 0 {
+			if err := c.exitDisconnect(); err != nil {
+				log.Errorf("%s exitDisconnect error: %s", c.name(), err.Error())
+			}
+		}
 		if err := c.close(); err != nil {
 			log.Errorf("%s close error: %s", c.name(), err.Error())
 		} else {
@@ -41,7 +47,6 @@ func (c *Conn) serve() {
 			log.Errorf("%s serve panic, err: %v", c.name(), err)
 		}
 	}()
-
 	c.remoteAddr = c.rwc.RemoteAddr().String()
 
 	err := c.handshake()
