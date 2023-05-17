@@ -1,4 +1,4 @@
-package entrance
+package sidecar
 
 import (
 	"context"
@@ -25,16 +25,16 @@ func genConnId() uint32 {
 }
 
 type Server struct {
-	mu             sync.Mutex
-	listener       net.Listener
-	connNum        int64
-	inShutdown     atomicx.Bool
-	doneChan       chan struct{}
-	Addr           string
-	ReadTimeout    time.Duration
-	WriteTimeout   time.Duration
-	exitServerAddr string
-	exitClient     *http.Client
+	mu                  sync.Mutex
+	listener            net.Listener
+	connNum             int64
+	inShutdown          atomicx.Bool
+	doneChan            chan struct{}
+	Addr                string
+	ReadTimeout         time.Duration
+	WriteTimeout        time.Duration
+	transportServerAddr string
+	transportClient     *http.Client
 }
 
 func NewServer(conf *Config) (*Server, error) {
@@ -42,12 +42,12 @@ func NewServer(conf *Config) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		Addr:           conf.Addr,
-		ReadTimeout:    time.Duration(conf.ReadTimeoutMillis) * time.Millisecond,
-		WriteTimeout:   time.Duration(conf.WriteTimeoutMillis) * time.Millisecond,
-		exitServerAddr: conf.ExitServerAddr,
-		exitClient: &http.Client{
-			Timeout: time.Duration(conf.ExitServerTimeoutMillis) * time.Millisecond,
+		Addr:                conf.Addr,
+		ReadTimeout:         time.Duration(conf.ReadTimeoutMillis) * time.Millisecond,
+		WriteTimeout:        time.Duration(conf.WriteTimeoutMillis) * time.Millisecond,
+		transportServerAddr: conf.TransportAddr,
+		transportClient: &http.Client{
+			Timeout: time.Duration(conf.TransportTimeoutMillis) * time.Millisecond,
 		},
 	}, nil
 }

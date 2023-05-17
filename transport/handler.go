@@ -1,4 +1,4 @@
-package exit
+package transport
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Orlion/hersql/log"
+	"github.com/Orlion/hersql/mysql"
 )
 
 func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
@@ -18,19 +19,20 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 
 	rwc, err := net.Dial("tcp", addr)
 	if err != nil {
-		responseFail(w, fmt.Sprintf("exit dial to %s failed: %s", addr, err.Error()))
+		responseFail(w, fmt.Sprintf("transport dial to %s failed: %s", addr, err.Error()))
 		return
 	}
 
 	conn := &Conn{
 		rwc:      rwc,
 		createAt: time.Now(),
+		pkg:      mysql.NewPacketIO(rwc),
 		dbname:   dbname,
 		user:     user,
 		passwd:   passwd,
 	}
 	if err := conn.handshake(); err != nil {
-		responseFail(w, fmt.Sprintf("exit create conn failed: %s", err.Error()))
+		responseFail(w, fmt.Sprintf("transport create conn failed: %s", err.Error()))
 		return
 	}
 
@@ -38,10 +40,7 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("conn %d connect to %s, from %s", connId, addr, r.RemoteAddr)
 
-	responseSuccess(w, &ResponseConnectData{
-		Runid:  s.runid,
-		ConnId: connId,
-	})
+	connectResponse(w, s.runid, connId)
 }
 
 func (s *Server) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +69,7 @@ func (s *Server) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("conn %d close error: %s", connId, err.Error())
 	}
 
-	responseSuccess(w, nil)
+	disconnectResponse(w)
 }
 
 func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
@@ -104,5 +103,5 @@ func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseSuccess(w, responsePacket)
+	transportResponse(w, responsePacket)
 }

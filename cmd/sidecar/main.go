@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/Orlion/hersql/config"
-	"github.com/Orlion/hersql/entrance"
 	"github.com/Orlion/hersql/log"
+	"github.com/Orlion/hersql/sidecar"
 )
 
-var configFile *string = flag.String("conf", "", "hersql entrance config file")
+var configFile *string = flag.String("conf", "", "hersql sidecar config file")
 
 func main() {
 	flag.Parse()
-	conf, err := config.ParseEntranceConfig(*configFile)
+	conf, err := config.ParseSidecarConfig(*configFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "configuration file parse error: "+err.Error())
 		os.Exit(1)
@@ -26,7 +26,7 @@ func main() {
 
 	log.Init(conf.Log)
 
-	srv, err := entrance.NewServer(conf.Server)
+	srv, err := sidecar.NewServer(conf.Server)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "server error: "+err.Error())
 		os.Exit(1)
@@ -42,7 +42,7 @@ func main() {
 	waitGracefulStop(srv)
 }
 
-func waitGracefulStop(srv *entrance.Server) {
+func waitGracefulStop(srv *sidecar.Server) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	for {

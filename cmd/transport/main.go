@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/Orlion/hersql/config"
-	"github.com/Orlion/hersql/exit"
 	"github.com/Orlion/hersql/log"
+	"github.com/Orlion/hersql/transport"
 )
 
-var configFile *string = flag.String("conf", "", "hersql exit config file")
+var configFile *string = flag.String("conf", "", "hersql transport config file")
 
 func main() {
 	flag.Parse()
-	conf, err := config.ParseExitConfig(*configFile)
+	conf, err := config.ParseTransportConfig(*configFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "configuration file parse error: "+err.Error())
 		os.Exit(1)
@@ -26,7 +26,7 @@ func main() {
 
 	log.Init(conf.Log)
 
-	srv := exit.NewServer(conf.Server)
+	srv := transport.NewServer(conf.Server)
 	go func() {
 		if err = srv.ListenAndServe(); err != nil {
 			fmt.Fprintln(os.Stderr, "server error: "+err.Error())
@@ -38,7 +38,7 @@ func main() {
 
 }
 
-func waitGracefulStop(srv *exit.Server) {
+func waitGracefulStop(srv *transport.Server) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	for {

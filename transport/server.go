@@ -1,4 +1,4 @@
-package exit
+package transport
 
 import (
 	"context"
@@ -15,7 +15,7 @@ type Server struct {
 	runid      string
 	Addr       string
 	http       *http.Server
-	lastConnId uint64
+	nextConnId uint64
 	conns      map[uint64]*Conn
 }
 
@@ -66,10 +66,10 @@ func (s *Server) addConn(conn *Conn) uint64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	conn.id = s.lastConnId
+	conn.id = s.nextConnId
 	s.conns[conn.id] = conn
 
-	s.lastConnId++
+	s.nextConnId++
 
 	return conn.id
 }

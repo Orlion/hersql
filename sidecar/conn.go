@@ -1,4 +1,4 @@
-package entrance
+package sidecar
 
 import (
 	"bytes"
@@ -18,24 +18,24 @@ var DEFAULT_CAPABILITY uint32 = mysql.CLIENT_LONG_PASSWORD | mysql.CLIENT_LONG_F
 	mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_SECURE_CONNECTION | mysql.CLIENT_PLUGIN_AUTH
 
 type Conn struct {
-	connId     uint32
-	server     *Server
-	rwc        net.Conn
-	remoteAddr string
-	pkg        *mysql.PacketIO
-	salt       []byte
-	status     uint16
-	capability uint32
-	dsn        *mysql_driver.Config
-	exitRunid  string
-	exitConnId uint64
+	connId          uint32
+	server          *Server
+	rwc             net.Conn
+	remoteAddr      string
+	pkg             *mysql.PacketIO
+	salt            []byte
+	status          uint16
+	capability      uint32
+	dsn             *mysql_driver.Config
+	transportRunid  string
+	transportConnId uint64
 }
 
 func (c *Conn) serve() {
 	defer func() {
-		if c.exitConnId > 0 {
-			if err := c.exitDisconnect(); err != nil {
-				log.Errorf("%s exitDisconnect error: %s", c.name(), err.Error())
+		if c.transportConnId > 0 {
+			if err := c.transportDisconnect(); err != nil {
+				log.Errorf("%s transportDisconnect error: %s", c.name(), err.Error())
 			}
 		}
 		if err := c.close(); err != nil {
@@ -73,15 +73,16 @@ func (c *Conn) serve() {
 		}
 
 		// 发送到服务端
-		if responseData, err := c.exitTransport(data); err != nil {
+		if responseData, err := c.transport(data); err != nil {
 			log.Errorf("%s transport error: %s", c.name(), err.Error())
+			c.writeError(err)
 		} else {
 			if err = c.writePacket(responseData); err != nil {
 				log.Errorf("%s write packet error: %s", c.name(), err.Error())
+				break
 			}
 		}
 	}
-
 }
 
 func (c *Conn) handshake() error {
@@ -94,8 +95,8 @@ func (c *Conn) handshake() error {
 		return fmt.Errorf("readHandshakeResponse error: %w", err)
 	}
 
-	if err := c.exitConnect(); err != nil {
-		err = fmt.Errorf("exitConnect error: %w", err)
+	if err := c.transportConnect(); err != nil {
+		err = fmt.Errorf("transportConnect error: %w", err)
 		c.writeError(err)
 		return err
 	}
@@ -266,5 +267,5 @@ func (c *Conn) close() error {
 }
 
 func (c *Conn) name() string {
-	return fmt.Sprintf("conn[id: %d, from %s, exitConnid: %d]", c.connId, c.remoteAddr, c.exitConnId)
+	return fmt.Sprintf("conn[id: %d, from %s, transportConnid: %d]", c.connId, c.remoteAddr, c.transportConnId)
 }

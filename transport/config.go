@@ -1,4 +1,4 @@
-package exit
+package transport
 
 type Config struct {
 	Addr               string `yaml:"addr"`

@@ -1,4 +1,4 @@
-package exit
+package transport
 
 import (
 	"bytes"
@@ -13,9 +13,9 @@ import (
 
 type Conn struct {
 	id         uint64
+	rwc        net.Conn
 	createAt   time.Time
 	pkg        *mysql.PacketIO
-	rwc        net.Conn
 	salt       []byte
 	capability uint32
 	status     uint16
