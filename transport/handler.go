@@ -32,6 +32,7 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 		passwd:   passwd,
 	}
 	if err := conn.handshake(); err != nil {
+		rwc.Close()
 		responseFail(w, fmt.Sprintf("transport create conn failed: %s", err.Error()))
 		return
 	}

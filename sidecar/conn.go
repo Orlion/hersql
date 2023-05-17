@@ -55,7 +55,7 @@ func (c *Conn) serve() {
 		return
 	}
 
-	log.Info("%s handshake success", c.name())
+	log.Infof("%s handshake success", c.name())
 
 	for {
 		if c.server.shuttingDown() {
@@ -72,6 +72,8 @@ func (c *Conn) serve() {
 			break
 		}
 
+		log.Debugf("%s readPacket, data: %s", c.name(), string(data))
+
 		// 发送到服务端
 		if responseData, err := c.transport(data); err != nil {
 			log.Errorf("%s transport error: %s", c.name(), err.Error())
@@ -82,6 +84,8 @@ func (c *Conn) serve() {
 				break
 			}
 		}
+
+		log.Debugf("%s writePacket success", c.name())
 	}
 }
 

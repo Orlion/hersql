@@ -34,6 +34,12 @@ func (c *Conn) handshake() error {
 		return err
 	}
 
+	if _, err := c.readOK(); err != nil {
+		return err
+	}
+
+	c.pkg.Sequence = 0
+
 	return nil
 }
 
@@ -160,6 +166,65 @@ func (c *Conn) writeHandshakeResponse() error {
 	}
 
 	return c.writePacket(data)
+}
+
+func (c *Conn) readOK() (*mysql.Result, error) {
+	data, err := c.readPacket()
+	if err != nil {
+		return nil, err
+	}
+
+	if data[0] == mysql.OK_HEADER {
+		return c.handleOKPacket(data)
+	} else if data[0] == mysql.ERR_HEADER {
+		return nil, c.handleErrorPacket(data)
+	} else {
+		return nil, errors.New("invalid ok packet")
+	}
+}
+
+func (c *Conn) handleOKPacket(data []byte) (*mysql.Result, error) {
+	var n int
+	var pos int = 1
+
+	r := new(mysql.Result)
+
+	r.AffectedRows, _, n = mysql.LengthEncodedInt(data[pos:])
+	pos += n
+	r.InsertId, _, n = mysql.LengthEncodedInt(data[pos:])
+	pos += n
+
+	if c.capability&mysql.CLIENT_PROTOCOL_41 > 0 {
+		r.Status = binary.LittleEndian.Uint16(data[pos:])
+		c.status = r.Status
+		pos += 2
+	} else if c.capability&mysql.CLIENT_TRANSACTIONS > 0 {
+		r.Status = binary.LittleEndian.Uint16(data[pos:])
+		c.status = r.Status
+		pos += 2
+	}
+
+	return r, nil
+}
+
+func (c *Conn) handleErrorPacket(data []byte) error {
+	e := new(mysql.SqlError)
+
+	var pos int = 1
+
+	e.Code = binary.LittleEndian.Uint16(data[pos:])
+	pos += 2
+
+	if c.capability&mysql.CLIENT_PROTOCOL_41 > 0 {
+		//skip '#'
+		pos++
+		e.State = string(data[pos : pos+5])
+		pos += 5
+	}
+
+	e.Message = string(data[pos:])
+
+	return e
 }
 
 func (c *Conn) readPacket() ([]byte, error) {
