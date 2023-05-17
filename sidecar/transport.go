@@ -89,7 +89,7 @@ func (c *Conn) callTransport(path string, form url.Values) ([]byte, error) {
 	defer func() {
 		log.Debugf("%s callTransport%s form: %s, resp.body: %s", c.name(), path, form.Encode(), string(body))
 	}()
-	resp, err := c.server.transportClient.PostForm(c.server.transportServerAddr+path, form)
+	resp, err := c.server.transportClient.PostForm(c.server.transportAddr+path, form)
 	if err != nil {
 		return nil, err
 	}

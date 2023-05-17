@@ -6,7 +6,8 @@ server:
   read_timeout_millis: 5000
   # Write from connection timeout milliseconds, It defaults to 5000 milliseconds.
   write_timeout_millis: 5000
-  transport_server_addr: http://127.0.0.1:8080
+  transport_addr: http://127.0.0.1:8080
+  transport_timeout_millis: 5000
 
 log:
   # Stdout log level debug/info/warn/error/dpanic/panic/fatal
