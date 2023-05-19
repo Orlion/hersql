@@ -89,7 +89,7 @@ func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("connId %d transport packet len: %d", connId, len(packet))
 
-	conn, exists := s.conns[connId]
+	conn, exists := s.getConn(connId)
 	if !exists {
 		responseFail(w, fmt.Sprintf("conn %d not found", connId))
 		return
@@ -97,7 +97,7 @@ func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 
 	responsePackets, err := conn.transport([]byte(packet))
 	if err != nil {
-		responseFail(w, fmt.Sprintf("conn %d not found", connId))
+		responseFail(w, fmt.Sprintf("conn %d transport: %s", connId, err.Error()))
 		return
 	}
 

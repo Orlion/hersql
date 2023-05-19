@@ -175,8 +175,6 @@ func (c *Conn) readHandshakeResponse() error {
 
 	//capability
 	c.capability = binary.LittleEndian.Uint32(data[:4])
-	fmt.Printf("%b\n", c.capability)
-	fmt.Printf("%X\n", c.capability)
 	pos += 4
 
 	//skip max packet size

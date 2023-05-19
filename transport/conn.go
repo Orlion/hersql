@@ -240,6 +240,7 @@ func (c *Conn) close() error {
 }
 
 func (c *Conn) transport(packet []byte) ([][]byte, error) {
+	c.pkg.Sequence = 0
 	if err := c.writePacket(append(make([]byte, 4, 4+len(packet)), packet...)); err != nil {
 		return nil, err
 	}
@@ -254,7 +255,7 @@ func (c *Conn) transport(packet []byte) ([][]byte, error) {
 	case mysql.COM_INIT_DB:
 	case mysql.COM_FIELD_LIST:
 	default:
-		return nil, mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d not supported now", cmd))
+		return nil, mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d not supported now, packet: %s", cmd, string(packet)))
 	}
 
 	return nil, nil
