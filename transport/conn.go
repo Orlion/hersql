@@ -238,3 +238,58 @@ func (c *Conn) writePacket(data []byte) error {
 func (c *Conn) close() error {
 	return c.rwc.Close()
 }
+
+func (c *Conn) transport(packet []byte) ([][]byte, error) {
+	cmd := packet[0]
+	switch cmd {
+	case mysql.COM_QUIT:
+		panic("")
+	case mysql.COM_QUERY:
+		return c.handleQuery(packet)
+	case mysql.COM_PING:
+	case mysql.COM_INIT_DB:
+	case mysql.COM_FIELD_LIST:
+	default:
+		return nil, mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d not supported now", cmd))
+	}
+
+	return nil, nil
+}
+
+func (c *Conn) handleQuery(packet []byte) ([][]byte, error) {
+	if err := c.writePacket(packet); err != nil {
+		return nil, err
+	}
+
+	// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html
+	responsePackets := make([][]byte, 0)
+	hasEof := false
+Loop:
+	for {
+		responsePacket, err := c.readPacket()
+		if err != nil {
+			return nil, err
+		}
+
+		responsePackets = append(responsePackets, responsePacket)
+
+		switch responsePacket[0] {
+		case 0:
+			// ok
+			break Loop
+		case 0xFE:
+			// eof
+			if hasEof {
+				break Loop
+			}
+			hasEof = true
+		case 0xFF:
+			// error
+			break Loop
+		default:
+			// column_count | Field metadata | The row data
+		}
+	}
+
+	return responsePackets, nil
+}

@@ -60,7 +60,7 @@ func (c *Conn) transportDisconnect() error {
 	return nil
 }
 
-func (c *Conn) transport(data []byte) ([]byte, error) {
+func (c *Conn) transport(data []byte) ([][]byte, error) {
 	form := url.Values{}
 	form.Set("runid", c.transportRunid)
 	form.Set("connId", strconv.FormatUint(c.transportConnId, 10))

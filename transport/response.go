@@ -22,7 +22,7 @@ type ConnectResponseData struct {
 
 type TransportResponse struct {
 	Response
-	Data []byte `json:"data"`
+	Data [][]byte `json:"data"`
 }
 
 func connectResponse(w http.ResponseWriter, runid string, connId uint64) {
@@ -53,7 +53,7 @@ func disconnectResponse(w http.ResponseWriter) {
 	w.Write(b)
 }
 
-func transportResponse(w http.ResponseWriter, data []byte) {
+func transportResponse(w http.ResponseWriter, data [][]byte) {
 	b, err := json.Marshal(&TransportResponse{
 		Response: Response{
 			Success: true,

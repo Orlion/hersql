@@ -75,13 +75,15 @@ func (c *Conn) serve() {
 		log.Debugf("%s readPacket, data: %s", c.name(), string(data))
 
 		// 发送到服务端
-		if responseData, err := c.transport(data); err != nil {
+		if responsePackets, err := c.transport(data); err != nil {
 			log.Errorf("%s transport error: %s", c.name(), err.Error())
 			c.writeError(err)
 		} else {
-			if err = c.writePacket(responseData); err != nil {
-				log.Errorf("%s write packet error: %s", c.name(), err.Error())
-				break
+			for _, responsePacket := range responsePackets {
+				if err = c.writePacket(responsePacket); err != nil {
+					log.Errorf("%s write packet error: %s", c.name(), err.Error())
+					break
+				}
 			}
 		}
 

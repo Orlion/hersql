@@ -93,16 +93,11 @@ func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	packet := r.PostFormValue("packet")
-	if err := conn.writePacket([]byte(packet)); err != nil {
-		responseFail(w, fmt.Sprintf("write packet error: %s", err.Error()))
-		return
-	}
-
-	responsePacket, err := conn.readPacket()
+	responsePackets, err := conn.transport([]byte(packet))
 	if err != nil {
-		responseFail(w, fmt.Sprintf("read packet error: %s", err.Error()))
+		responseFail(w, fmt.Sprintf("conn %d not found", connId))
 		return
 	}
 
-	transportResponse(w, responsePacket)
+	transportResponse(w, responsePackets)
 }
