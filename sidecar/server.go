@@ -129,7 +129,6 @@ func (s *Server) serve() error {
 		}
 		s.incrConnNum()
 		c := s.newConn(rw)
-		log.Debugf("server new Conn from %s", rw.RemoteAddr().String())
 		go func() {
 			c.serve()
 			s.decrConnNum()
@@ -143,12 +142,13 @@ func (s *Server) shuttingDown() bool {
 
 func (s *Server) newConn(rwc net.Conn) *Conn {
 	c := &Conn{
-		pkg:    mysql.NewPacketIO(rwc),
-		connId: genConnId(),
-		salt:   mysql.RandomBuf(20),
-		server: s,
-		rwc:    rwc,
-		status: mysql.SERVER_STATUS_AUTOCOMMIT,
+		pkg:        mysql.NewPacketIO(rwc),
+		connId:     genConnId(),
+		salt:       mysql.RandomBuf(20),
+		server:     s,
+		rwc:        rwc,
+		remoteAddr: rwc.RemoteAddr().String(),
+		status:     mysql.SERVER_STATUS_AUTOCOMMIT,
 	}
 
 	return c

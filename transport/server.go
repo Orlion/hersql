@@ -23,9 +23,10 @@ func NewServer(conf *Config) *Server {
 	withDefaultConf(conf)
 
 	s := &Server{
-		runid: strconv.FormatInt(time.Now().UnixNano(), 10),
-		Addr:  conf.Addr,
-		conns: make(map[uint64]*Conn),
+		runid:      strconv.FormatInt(time.Now().UnixNano(), 10),
+		Addr:       conf.Addr,
+		conns:      make(map[uint64]*Conn),
+		nextConnId: 1,
 	}
 
 	serveMux := http.NewServeMux()
@@ -75,6 +76,7 @@ func (s *Server) addConn(conn *Conn) uint64 {
 }
 
 func (s *Server) delConn(connId uint64) {
+	log.Debugf("connId %d del", connId)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.conns, connId)

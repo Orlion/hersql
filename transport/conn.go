@@ -240,6 +240,10 @@ func (c *Conn) close() error {
 }
 
 func (c *Conn) transport(packet []byte) ([][]byte, error) {
+	if err := c.writePacket(append(make([]byte, 4, 4+len(packet)), packet...)); err != nil {
+		return nil, err
+	}
+
 	cmd := packet[0]
 	switch cmd {
 	case mysql.COM_QUIT:
@@ -257,10 +261,6 @@ func (c *Conn) transport(packet []byte) ([][]byte, error) {
 }
 
 func (c *Conn) handleQuery(packet []byte) ([][]byte, error) {
-	if err := c.writePacket(packet); err != nil {
-		return nil, err
-	}
-
 	// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html
 	responsePackets := make([][]byte, 0)
 	hasEof := false
@@ -274,16 +274,16 @@ Loop:
 		responsePackets = append(responsePackets, responsePacket)
 
 		switch responsePacket[0] {
-		case 0:
+		case mysql.OK_HEADER:
 			// ok
 			break Loop
-		case 0xFE:
+		case mysql.EOF_HEADER:
 			// eof
 			if hasEof {
 				break Loop
 			}
 			hasEof = true
-		case 0xFF:
+		case mysql.ERR_HEADER:
 			// error
 			break Loop
 		default:

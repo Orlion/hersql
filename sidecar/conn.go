@@ -34,20 +34,21 @@ type Conn struct {
 func (c *Conn) serve() {
 	defer func() {
 		if c.transportConnId > 0 {
-			if err := c.transportDisconnect(); err != nil {
-				log.Errorf("%s transportDisconnect error: %s", c.name(), err.Error())
-			}
+			// if err := c.transportDisconnect(); err != nil {
+			// 	log.Errorf("%s transportDisconnect error: %s", c.name(), err.Error())
+			// }
 		}
 		if err := c.close(); err != nil {
 			log.Errorf("%s close error: %s", c.name(), err.Error())
 		} else {
 			log.Infof("%s closed", c.name())
 		}
-		if err := recover(); err != nil {
-			log.Errorf("%s serve panic, err: %v", c.name(), err)
-		}
+		// if err := recover(); err != nil {
+		// 	log.Errorf("%s serve panic, err: %v", c.name(), err)
+		// }
 	}()
-	c.remoteAddr = c.rwc.RemoteAddr().String()
+
+	log.Infof("%s serve", c.name())
 
 	err := c.handshake()
 	if err != nil {
@@ -63,6 +64,7 @@ func (c *Conn) serve() {
 		}
 
 		data, err := c.readPacket()
+		log.Infof("%s read packet, len: %d", c.name(), len(data))
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				log.Infof("%s closed", c.name())
@@ -72,22 +74,21 @@ func (c *Conn) serve() {
 			break
 		}
 
-		log.Debugf("%s readPacket, data: %s", c.name(), string(data))
-
 		// 发送到服务端
 		if responsePackets, err := c.transport(data); err != nil {
 			log.Errorf("%s transport error: %s", c.name(), err.Error())
 			c.writeError(err)
 		} else {
 			for _, responsePacket := range responsePackets {
-				if err = c.writePacket(responsePacket); err != nil {
+				log.Infof("%s write packet, len: %d", c.name(), len(responsePacket))
+				if err = c.writePacket(append(make([]byte, 4, 4+len(responsePacket)), responsePacket...)); err != nil {
 					log.Errorf("%s write packet error: %s", c.name(), err.Error())
 					break
 				}
 			}
 		}
 
-		log.Debugf("%s writePacket success", c.name())
+		c.pkg.Sequence = 0
 	}
 }
 
@@ -174,6 +175,8 @@ func (c *Conn) readHandshakeResponse() error {
 
 	//capability
 	c.capability = binary.LittleEndian.Uint32(data[:4])
+	fmt.Printf("%b\n", c.capability)
+	fmt.Printf("%X\n", c.capability)
 	pos += 4
 
 	//skip max packet size
@@ -202,7 +205,6 @@ func (c *Conn) readHandshakeResponse() error {
 		}
 
 		dsnStr := string(data[pos : pos+bytes.IndexByte(data[pos:], 0)])
-		log.Debugf("%s handshake response's dsn is %s", c.name(), dsnStr)
 
 		c.dsn, err = mysql_driver.ParseDSN(dsnStr)
 		if err != nil {
