@@ -26,6 +26,7 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	conn := &Conn{
 		rwc:      rwc,
 		createAt: time.Now(),
+		server:   s,
 		pkg:      mysql.NewPacketIO(rwc),
 		dbname:   dbname,
 		user:     user,

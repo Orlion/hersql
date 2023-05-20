@@ -79,6 +79,10 @@ func (c *Conn) serve() {
 			log.Errorf("%s transport error: %s", c.name(), err.Error())
 			c.writeError(err)
 		} else {
+			if len(responsePackets) < 1 {
+				break
+			}
+
 			for _, responsePacket := range responsePackets {
 				log.Infof("%s write packet, len: %d", c.name(), len(responsePacket))
 				if err = c.writePacket(append(make([]byte, 4, 4+len(responsePacket)), responsePacket...)); err != nil {

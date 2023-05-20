@@ -15,6 +15,7 @@ type Conn struct {
 	id         uint64
 	rwc        net.Conn
 	createAt   time.Time
+	server     *Server
 	pkg        *mysql.PacketIO
 	salt       []byte
 	capability uint32
@@ -247,50 +248,17 @@ func (c *Conn) transport(packet []byte) ([][]byte, error) {
 
 	cmd := packet[0]
 	switch cmd {
-	case mysql.COM_QUIT:
-		panic("")
-	case mysql.COM_QUERY:
-		return c.handleQuery(packet)
 	case mysql.COM_PING:
 	case mysql.COM_INIT_DB:
+	case mysql.COM_QUERY:
+		return c.handleQuery()
+	case mysql.COM_QUIT:
+		return c.handleQuit()
 	case mysql.COM_FIELD_LIST:
+		return c.handleFieldList()
 	default:
-		return nil, mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d not supported now, packet: %s", cmd, string(packet)))
+		return nil, mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d not supported now", cmd))
 	}
 
 	return nil, nil
-}
-
-func (c *Conn) handleQuery(packet []byte) ([][]byte, error) {
-	// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html
-	responsePackets := make([][]byte, 0)
-	hasEof := false
-Loop:
-	for {
-		responsePacket, err := c.readPacket()
-		if err != nil {
-			return nil, err
-		}
-
-		responsePackets = append(responsePackets, responsePacket)
-
-		switch responsePacket[0] {
-		case mysql.OK_HEADER:
-			// ok
-			break Loop
-		case mysql.EOF_HEADER:
-			// eof
-			if hasEof {
-				break Loop
-			}
-			hasEof = true
-		case mysql.ERR_HEADER:
-			// error
-			break Loop
-		default:
-			// column_count | Field metadata | The row data
-		}
-	}
-
-	return responsePackets, nil
 }

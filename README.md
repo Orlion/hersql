@@ -20,8 +20,8 @@ $ go run cmd/sidecar/main.go -conf=sidecar.example.yaml
 ```
 eg.
 ```
-username:password@protocol(address)/dbname?param=value
+root:123456@tcp(localhost:3306)/blog?param=value
 ```
 hersql sidecar会从握手包中解析dsn然后告知hersql transport连接到解析出的目标Mysql服务器
-# 站在巨人的肩膀
+# 站在巨人的肩膀上
 本项目代码采用了大量[github.com/siddontang/mixer](https://github.com/siddontang/mixer)的代码，在此表示感谢
