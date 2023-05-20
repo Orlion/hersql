@@ -3,11 +3,11 @@ server:
   addr: 127.0.0.1:3306
   # Read from connection timeout milliseconds, It defaults to 5000 milliseconds.
   # It should be the maximum execution time of the script if the client is PHP-FPM.
-  read_timeout_millis: 5000
+  read_timeout_millis: 28800000
   # Write from connection timeout milliseconds, It defaults to 5000 milliseconds.
-  write_timeout_millis: 5000
+  write_timeout_millis: 28800000
   transport_addr: http://127.0.0.1:8001
-  transport_timeout_millis: 5000
+  transport_timeout_millis: 28800000
 
 log:
   # Stdout log level debug/info/warn/error/dpanic/panic/fatal
