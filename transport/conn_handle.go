@@ -1,8 +1,7 @@
 package transport
 
 import (
-	"log"
-
+	"github.com/Orlion/hersql/log"
 	"github.com/Orlion/hersql/mysql"
 )
 
@@ -56,7 +55,7 @@ Loop:
 		case mysql.OK_HEADER:
 			c.server.delConn(c.id)
 			c.close()
-			log.Panicf("received an OK packet while parsing the COM_FIELD_LIST response")
+			log.Panicw("conn handle field list received an OK packet while parsing the COM_FIELD_LIST response")
 		case mysql.EOF_HEADER:
 			// eof
 			break Loop

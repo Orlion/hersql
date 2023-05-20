@@ -49,11 +49,11 @@ func waitGracefulStop(srv *sidecar.Server) {
 		s := <-c
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
-			log.Infof("received signal: %s will stop...", s.String())
+			log.Infow("received stop signal", "signal", s.String())
 			ctx, _ := context.WithTimeout(context.Background(), 3000*time.Millisecond)
 			srv.Shutdown(ctx)
 			log.Shutdown()
-			time.Sleep(1 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 			return
 		case syscall.SIGHUP:
 		default:

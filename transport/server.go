@@ -44,12 +44,12 @@ func NewServer(conf *Config) *Server {
 }
 
 func (s *Server) ListenAndServe() error {
-	log.Infof("server listen on %s...", s.Addr)
+	log.Infow("server serve", "addr", s.Addr)
 	return s.http.ListenAndServe()
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Info("server shutdown...")
+	log.Infow("server shutdown...")
 	err := s.http.Shutdown(ctx)
 
 	s.mu.Lock()
@@ -76,7 +76,6 @@ func (s *Server) addConn(conn *Conn) uint64 {
 }
 
 func (s *Server) delConn(connId uint64) {
-	log.Debugf("connId %d del", connId)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.conns, connId)

@@ -62,7 +62,7 @@ func (s *Server) ListenAndServe() (err error) {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Info("server shutdown...")
+	log.Infow("server shutdown...")
 
 	s.inShutdown.SetTrue()
 
@@ -76,12 +76,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	defer ticker.Stop()
 	for {
 		if s.getConnNum() == 0 {
-			log.Info("server exit")
+			log.Infow("server shutdown with conn num = 0")
 			return lnerr
 		}
 		select {
 		case <-ctx.Done():
-			log.Info("server exit")
+			log.Infow("server shutdown with context done")
 			return ctx.Err()
 		case <-ticker.C:
 		}
@@ -98,7 +98,7 @@ func (s *Server) closeDoneChanLocked() {
 }
 
 func (s *Server) serve() error {
-	log.Infof("server listen on %s...", s.Addr)
+	log.Infow("server serve", "addr", s.Addr)
 
 	var tempDelay time.Duration // how long to sleep on accept failure
 

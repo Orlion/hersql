@@ -50,36 +50,28 @@ func Init(conf *Config) {
 	logger = zap.New(zapcore.NewTee(cores...)).Sugar()
 }
 
-func Debug(args ...interface{}) {
-	logger.Debug(args...)
-}
-
-func Debugf(template string, args ...interface{}) {
-	logger.Debugf(template, args...)
-}
-
-func Info(args ...interface{}) {
-	logger.Info(args...)
-}
-
-func Infof(template string, args ...interface{}) {
-	logger.Infof(template, args...)
-}
-
-func Warnf(template string, args ...interface{}) {
-	logger.Warnf(template, args...)
-}
-
-func Error(args ...interface{}) {
-	logger.Error(args...)
-}
-
-func Errorf(template string, args ...interface{}) {
-	logger.Errorf(template, args...)
-}
-
 func Panicf(template string, args ...interface{}) {
 	logger.Panicf(template, args...)
+}
+
+func Debugw(msg string, keysAndValues ...interface{}) {
+	logger.Debugw(msg, keysAndValues...)
+}
+
+func Infow(msg string, keysAndValues ...interface{}) {
+	logger.Infow(msg, keysAndValues...)
+}
+
+func Warnw(msg string, keysAndValues ...interface{}) {
+	logger.Warnw(msg, keysAndValues...)
+}
+
+func Errorw(msg string, keysAndValues ...interface{}) {
+	logger.Errorw(msg, keysAndValues...)
+}
+
+func Panicw(msg string, keysAndValues ...interface{}) {
+	logger.Panicw(msg, keysAndValues...)
 }
 
 func Sync() {
@@ -87,6 +79,6 @@ func Sync() {
 }
 
 func Shutdown() {
-	Info("log shutdown...")
+	Infow("log shutdown...")
 	Sync()
 }

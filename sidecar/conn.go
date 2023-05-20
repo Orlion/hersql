@@ -33,30 +33,31 @@ type Conn struct {
 
 func (c *Conn) serve() {
 	defer func() {
+		if err := recover(); err != nil {
+			log.Panicw("conn serve panic", "conn", c.name(), "error", err)
+		}
+
 		if c.transportConnId > 0 {
-			// if err := c.transportDisconnect(); err != nil {
-			// 	log.Errorf("%s transportDisconnect error: %s", c.name(), err.Error())
-			// }
+			if err := c.transportDisconnect(); err != nil {
+				log.Errorw("conn serve transportDisconnect error occurred", "conn", c.name(), "error", err.Error())
+			}
 		}
 		if err := c.close(); err != nil {
-			log.Errorf("%s close error: %s", c.name(), err.Error())
+			log.Errorw("conn serve close error occurred ", "conn", c.name(), "error", err.Error())
 		} else {
-			log.Infof("%s closed", c.name())
+			log.Infow("conn serve closed", "conn", c.name())
 		}
-		// if err := recover(); err != nil {
-		// 	log.Errorf("%s serve panic, err: %v", c.name(), err)
-		// }
 	}()
 
-	log.Infof("%s serve", c.name())
+	log.Infow("conn serve start", "conn", c.name())
 
 	err := c.handshake()
 	if err != nil {
-		log.Errorf("%s handshake error: %s", c.name(), err.Error())
+		log.Errorw("conn serve handshake error occurred", "conn", c.name(), "error", err.Error())
 		return
 	}
 
-	log.Infof("%s handshake success", c.name())
+	log.Infow("conn serve handshake success", "conn", c.name())
 
 	for {
 		if c.server.shuttingDown() {
@@ -64,31 +65,34 @@ func (c *Conn) serve() {
 		}
 
 		data, err := c.readPacket()
-		log.Infof("%s read packet, len: %d", c.name(), len(data))
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				log.Infof("%s closed", c.name())
+				log.Infow("conn serve read closed", "conn", c.name())
 			} else {
-				log.Errorf("%s read packet error: %s", c.name(), err.Error())
+				log.Errorw("conn serve read packet error occurred", "conn", c.name(), "error", err.Error())
 			}
 			break
 		}
 
+		log.Infow("conn serve read packet", "conn", c.name(), "length", len(data))
+
 		// 发送到服务端
 		if responsePackets, err := c.transport(data); err != nil {
-			log.Errorf("%s transport error: %s", c.name(), err.Error())
+			log.Errorw("conn serve transport error occurred", "conn", c.name(), "error", err.Error())
 			c.writeError(err)
 		} else {
 			if len(responsePackets) < 1 {
+				c.transportConnId = 0
+				log.Infow("conn serve transport closed", "conn", c.name())
 				break
 			}
 
 			for _, responsePacket := range responsePackets {
-				log.Infof("%s write packet, len: %d", c.name(), len(responsePacket))
 				if err = c.writePacket(append(make([]byte, 4, 4+len(responsePacket)), responsePacket...)); err != nil {
-					log.Errorf("%s write packet error: %s", c.name(), err.Error())
+					log.Errorw("conn serve write packet error occurred", "conn", c.name(), "error", err.Error())
 					break
 				}
+				log.Infow("conn serve write packet", "conn", c.name(), "length", len(responsePacket))
 			}
 		}
 
@@ -210,9 +214,8 @@ func (c *Conn) readHandshakeResponse() error {
 
 		c.dsn, err = mysql_driver.ParseDSN(dsnStr)
 		if err != nil {
-			return fmt.Errorf(`the database failed to be parsed as a dsn, error: %w. the correct format is "[username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]"`, err)
+			return fmt.Errorf(`the database "%s" failed to be parsed as a dsn, error: %w. the correct format is "[username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]"`, dsnStr, err)
 		}
-		log.Infof("%s dsn dsn is assigned as addr: %s, user: %s, password: %s, dbname: %s", c.name(), c.dsn.Addr, c.dsn.User, c.dsn.Passwd, c.dsn.DBName)
 
 		pos += len(dsnStr) + 1
 	} else {

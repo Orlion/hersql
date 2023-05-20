@@ -19,7 +19,7 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 
 	rwc, err := net.Dial("tcp", addr)
 	if err != nil {
-		responseFail(w, fmt.Sprintf("transport dial to %s failed: %s", addr, err.Error()))
+		responseFail(w, fmt.Sprintf("handle connect dial to %s failed: %s", addr, err.Error()))
 		return
 	}
 
@@ -34,13 +34,13 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := conn.handshake(); err != nil {
 		rwc.Close()
-		responseFail(w, fmt.Sprintf("transport create conn failed: %s", err.Error()))
+		responseFail(w, fmt.Sprintf("handle connect create conn failed: %s", err.Error()))
 		return
 	}
 
 	connId := s.addConn(conn)
 
-	log.Infof("conn %d connect to %s, from %s", connId, addr, r.RemoteAddr)
+	log.Infow("handle connect", "connId", connId, "addr", addr, "remoteAddr", r.RemoteAddr)
 
 	connectResponse(w, s.runid, connId)
 }
@@ -48,28 +48,29 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 	runid := r.PostFormValue("runid")
 	if runid != s.runid {
-		responseFail(w, "the runid does not match, the server may have been restarted, please try to reconnect")
+		responseFail(w, "handle disconnect the runid does not match, the server may have been restarted, please try to reconnect")
 		return
 	}
 	connIdStr := r.PostFormValue("connId")
 	connId, err := strconv.ParseUint(connIdStr, 10, 64)
 	if err != nil {
-		responseFail(w, fmt.Sprintf("conn %s parse error: %s", connIdStr, err.Error()))
+		responseFail(w, fmt.Sprintf("handle disconnect conn %s parse error: %s", connIdStr, err.Error()))
 		return
 	}
 
 	conn, exists := s.getConn(connId)
 	if !exists {
-		responseFail(w, fmt.Sprintf("conn %d not found", connId))
+		responseFail(w, fmt.Sprintf("handle disconnect conn %d not found", connId))
 		return
 	}
 
 	s.delConn(connId)
 
-	log.Infof("conn %d disconnect, from %s", connId, r.RemoteAddr)
 	if err = conn.close(); err != nil {
-		log.Errorf("conn %d close error: %s", connId, err.Error())
+		log.Errorw("handle disconnect conn close error occrred", "connId", connId, "error", err.Error())
 	}
+
+	log.Infow("handle disconnect", "connId", connId, "remoteAddr", r.RemoteAddr)
 
 	disconnectResponse(w)
 }
@@ -77,30 +78,30 @@ func (s *Server) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 	runid := r.PostFormValue("runid")
 	if runid != s.runid {
-		responseFail(w, "the runid does not match, the server may have been restarted, please try to reconnect")
+		responseFail(w, "handle transport the runid does not match, the server may have been restarted, please try to reconnect")
 		return
 	}
 	connIdStr := r.PostFormValue("connId")
 	connId, err := strconv.ParseUint(connIdStr, 10, 64)
 	if err != nil {
-		responseFail(w, fmt.Sprintf("conn %s parse error: %s", connIdStr, err.Error()))
+		responseFail(w, fmt.Sprintf("handle transport connId %s parse error: %s", connIdStr, err.Error()))
 		return
 	}
 	packet := r.PostFormValue("packet")
 
-	log.Infof("connId %d transport packet len: %d", connId, len(packet))
-
 	conn, exists := s.getConn(connId)
 	if !exists {
-		responseFail(w, fmt.Sprintf("conn %d not found", connId))
+		responseFail(w, fmt.Sprintf("handle transport conn %d not found", connId))
 		return
 	}
 
 	responsePackets, err := conn.transport([]byte(packet))
 	if err != nil {
-		responseFail(w, fmt.Sprintf("conn %d transport: %s", connId, err.Error()))
+		responseFail(w, fmt.Sprintf("handle transport conn %d transport: %s", connId, err.Error()))
 		return
 	}
+
+	log.Infow("handle transport", "connId", connId, "length", len(packet), "responsePacketsNum", len(responsePackets))
 
 	transportResponse(w, responsePackets)
 }
