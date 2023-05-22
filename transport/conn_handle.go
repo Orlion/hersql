@@ -1,9 +1,34 @@
 package transport
 
 import (
+	"fmt"
+
 	"github.com/Orlion/hersql/log"
 	"github.com/Orlion/hersql/mysql"
 )
+
+func (c *Conn) transport(packet []byte) ([][]byte, error) {
+	c.pkg.Sequence = 0
+	if err := c.writePacket(append(make([]byte, 4, 4+len(packet)), packet...)); err != nil {
+		return nil, err
+	}
+
+	cmd := packet[0]
+	switch cmd {
+	case mysql.COM_PING:
+	case mysql.COM_INIT_DB:
+	case mysql.COM_QUERY:
+		return c.handleQuery()
+	case mysql.COM_QUIT:
+		return c.handleQuit()
+	case mysql.COM_FIELD_LIST:
+		return c.handleFieldList()
+	default:
+		return nil, mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d not supported now", cmd))
+	}
+
+	return nil, nil
+}
 
 func (c *Conn) handleQuery() ([][]byte, error) {
 	// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html

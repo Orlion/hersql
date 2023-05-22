@@ -17,6 +17,7 @@ func (c *Conn) transportConnect() error {
 	form.Set("dbname", c.dsn.DBName)
 	form.Set("user", c.dsn.User)
 	form.Set("passwd", c.dsn.Passwd)
+	form.Set("collation", strconv.FormatUint(uint64(c.collation), 10))
 
 	body, err := c.callTransport("/connect", form)
 	if err != nil {
@@ -85,7 +86,7 @@ func (c *Conn) callTransport(path string, form url.Values) ([]byte, error) {
 	var (
 		body []byte
 	)
-	resp, err := c.server.transportClient.PostForm(c.server.transportAddr+path, form)
+	resp, err := c.server.TransportClient.PostForm(c.server.TransportAddr+path, form)
 	if err != nil {
 		return nil, err
 	}

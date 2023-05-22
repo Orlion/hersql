@@ -31,10 +31,8 @@ type Server struct {
 	inShutdown      atomicx.Bool
 	doneChan        chan struct{}
 	Addr            string
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	transportAddr   string
-	transportClient *http.Client
+	TransportAddr   string
+	TransportClient *http.Client
 }
 
 func NewServer(conf *Config) (*Server, error) {
@@ -42,13 +40,9 @@ func NewServer(conf *Config) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		Addr:          conf.Addr,
-		ReadTimeout:   time.Duration(conf.ReadTimeoutMillis) * time.Millisecond,
-		WriteTimeout:  time.Duration(conf.WriteTimeoutMillis) * time.Millisecond,
-		transportAddr: conf.TransportAddr,
-		transportClient: &http.Client{
-			Timeout: time.Duration(conf.TransportTimeoutMillis) * time.Millisecond,
-		},
+		Addr:            conf.Addr,
+		TransportAddr:   conf.TransportAddr,
+		TransportClient: &http.Client{},
 	}, nil
 }
 

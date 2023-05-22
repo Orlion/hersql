@@ -16,6 +16,13 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	dbname := r.PostFormValue("dbname")
 	user := r.PostFormValue("user")
 	passwd := r.PostFormValue("passwd")
+	collationStr := r.PostFormValue("collation")
+
+	collation, err := strconv.ParseUint(collationStr, 10, 8)
+	if err != nil {
+		responseFail(w, fmt.Sprintf("handle connect parse collation %s error: %s", collationStr, err.Error()))
+		return
+	}
 
 	rwc, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -24,13 +31,14 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn := &Conn{
-		rwc:      rwc,
-		createAt: time.Now(),
-		server:   s,
-		pkg:      mysql.NewPacketIO(rwc),
-		dbname:   dbname,
-		user:     user,
-		passwd:   passwd,
+		rwc:       rwc,
+		createAt:  time.Now(),
+		server:    s,
+		pkg:       mysql.NewPacketIO(rwc),
+		dbname:    dbname,
+		user:      user,
+		passwd:    passwd,
+		collation: uint8(collation),
 	}
 	if err := conn.handshake(); err != nil {
 		rwc.Close()
@@ -101,7 +109,17 @@ func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Infow("handle transport", "connId", connId, "length", len(packet), "responsePacketsNum", len(responsePackets))
+	log.Infow("handle transport", "connId", connId, "cmd", packet[0], "length", len(packet), "responsePacketsNum", len(responsePackets))
 
 	transportResponse(w, responsePackets)
+}
+
+func (s *Server) HandleStatus(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	w.Write([]byte(fmt.Sprintf("conn num: %d", len(s.conns))))
+	for connId, conn := range s.conns {
+		w.Write([]byte(fmt.Sprintf("connId: %d, conn: %s \n", connId, conn.toString())))
+	}
 }

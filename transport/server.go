@@ -33,11 +33,10 @@ func NewServer(conf *Config) *Server {
 	serveMux.HandleFunc("/connect", s.HandleConnect)
 	serveMux.HandleFunc("/disconnect", s.HandleDisconnect)
 	serveMux.HandleFunc("/transport", s.HandleTransport)
+	serveMux.HandleFunc("/status", s.HandleStatus)
 	s.http = &http.Server{
-		Addr:         conf.Addr,
-		Handler:      serveMux,
-		ReadTimeout:  time.Duration(conf.ReadTimeoutMillis) * time.Millisecond,
-		WriteTimeout: time.Duration(conf.WriteTimeoutMillis) * time.Millisecond,
+		Addr:    conf.Addr,
+		Handler: serveMux,
 	}
 
 	return s

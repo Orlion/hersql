@@ -26,6 +26,7 @@ type Conn struct {
 	salt            []byte
 	status          uint16
 	capability      uint32
+	collation       uint8
 	dsn             *mysql_driver.Config
 	transportRunid  string
 	transportConnId uint64
@@ -167,6 +168,7 @@ func (c *Conn) writeInitialHandshake() error {
 	data = append(data, c.salt[8:]...)
 
 	//filter [00]
+	data = append(data, []byte(mysql.MysqlNativePassword)...)
 	data = append(data, 0)
 
 	return c.writePacket(data)
@@ -188,8 +190,7 @@ func (c *Conn) readHandshakeResponse() error {
 	//skip max packet size
 	pos += 4
 
-	//charset, skip, if you want to use another charset, use set names
-	//c.collation = CollationId(data[pos])
+	c.collation = data[pos]
 	pos++
 
 	//skip reserved 23[00]

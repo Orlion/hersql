@@ -19,11 +19,15 @@ type Conn struct {
 	pkg        *mysql.PacketIO
 	salt       []byte
 	capability uint32
+	collation  uint8
 	status     uint16
 	user       string
 	passwd     string
 	dbname     string
-	collation  mysql.CollationId
+}
+
+func (c *Conn) toString() string {
+	return fmt.Sprintf("id: %d, createAt: %s, salt: %v, capability: %d, collation: %d, status: %d, user: %s, dbname: %s", c.id, c.createAt.Format("2006-01-02 15:04:05"), c.salt, c.capability, c.collation, c.status, c.user, c.dbname)
 }
 
 func (c *Conn) handshake() error {
@@ -94,6 +98,17 @@ func (c *Conn) readInitialHandshake() error {
 		// mysql-entrance also use 12
 		// which is not documented but seems to work.
 		c.salt = append(c.salt, data[pos:pos+12]...)
+		pos += 13
+		var plugin string
+		if end := bytes.IndexByte(data[pos:], 0x00); end != -1 {
+			plugin = string(data[pos : pos+end])
+		} else {
+			plugin = string(data[pos:])
+		}
+
+		if plugin != mysql.MysqlNativePassword {
+			return fmt.Errorf("invalid auth plugin name %s, must be %s", plugin, mysql.MysqlNativePassword)
+		}
 	}
 
 	return nil
@@ -238,27 +253,4 @@ func (c *Conn) writePacket(data []byte) error {
 
 func (c *Conn) close() error {
 	return c.rwc.Close()
-}
-
-func (c *Conn) transport(packet []byte) ([][]byte, error) {
-	c.pkg.Sequence = 0
-	if err := c.writePacket(append(make([]byte, 4, 4+len(packet)), packet...)); err != nil {
-		return nil, err
-	}
-
-	cmd := packet[0]
-	switch cmd {
-	case mysql.COM_PING:
-	case mysql.COM_INIT_DB:
-	case mysql.COM_QUERY:
-		return c.handleQuery()
-	case mysql.COM_QUIT:
-		return c.handleQuit()
-	case mysql.COM_FIELD_LIST:
-		return c.handleFieldList()
-	default:
-		return nil, mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d not supported now", cmd))
-	}
-
-	return nil, nil
 }

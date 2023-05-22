@@ -7,6 +7,10 @@ const (
 )
 
 const (
+	MysqlNativePassword = "mysql_native_password"
+)
+
+const (
 	OK_HEADER          byte = 0x00
 	ERR_HEADER         byte = 0xff
 	EOF_HEADER         byte = 0xfe

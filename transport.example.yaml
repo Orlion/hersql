@@ -1,11 +1,6 @@
 server:
-  # The address that the cat-agent server listens to. If it listens to tcp, the format is ip:port, for example, 127.0.0.1:2380
+  # The address that the hersql transport server listens to
   addr: :8001
-  # Read from connection timeout milliseconds, It defaults to 5000 milliseconds.
-  # It should be the maximum execution time of the script if the client is PHP-FPM.
-  read_timeout_millis: 28800000
-  # Write from connection timeout milliseconds, It defaults to 5000 milliseconds.
-  write_timeout_millis: 28800000
 
 log:
   # Stdout log level debug/info/warn/error/dpanic/panic/fatal
