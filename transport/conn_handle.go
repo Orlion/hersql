@@ -80,7 +80,7 @@ Loop:
 		case mysql.OK_HEADER:
 			c.server.delConn(c.id)
 			c.close()
-			log.Panicw("conn handle field list received an OK packet while parsing the COM_FIELD_LIST response")
+			log.Errorw("conn handle field list received an OK packet while parsing the COM_FIELD_LIST response")
 		case mysql.EOF_HEADER:
 			// eof
 			break Loop

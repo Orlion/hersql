@@ -2,6 +2,7 @@ package sidecar
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"net/http"
@@ -40,9 +41,15 @@ func NewServer(conf *Config) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		Addr:            conf.Addr,
-		TransportAddr:   conf.TransportAddr,
-		TransportClient: &http.Client{},
+		Addr:          conf.Addr,
+		TransportAddr: conf.TransportAddr,
+		TransportClient: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: false,
+				},
+			},
+		},
 	}, nil
 }
 

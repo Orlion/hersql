@@ -1,6 +1,6 @@
 server:
   # The address that the hersql transport server listens to
-  addr: :8001
+  addr: :8080
 
 log:
   # Stdout log level debug/info/warn/error/dpanic/panic/fatal

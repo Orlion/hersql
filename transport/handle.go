@@ -99,7 +99,7 @@ func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 
 	conn, exists := s.getConn(connId)
 	if !exists {
-		responseFail(w, fmt.Sprintf("handle transport conn %d not found", connId))
+		responseFail(w, fmt.Sprintf("handle transport conn %d not found, please try reconnect", connId))
 		return
 	}
 

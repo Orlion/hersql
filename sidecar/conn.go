@@ -35,7 +35,7 @@ type Conn struct {
 func (c *Conn) serve() {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Panicw("conn serve panic", "conn", c.name(), "error", err)
+			log.Errorw("conn serve panic", "conn", c.name(), "error", err)
 		}
 
 		if c.transportConnId > 0 {

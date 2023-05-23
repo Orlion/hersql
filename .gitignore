@@ -17,3 +17,4 @@
 .vscode/
 storage/
 sidecar.dev.yaml
+bin/

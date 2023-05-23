@@ -1,7 +1,7 @@
 # hersql
 通过http(s)隧道来访问Mysql
 # 使用场景
-假设您的测试环境只对外开放了http(s)服务，因此在本地无法直接访问到测试环境的诸多Mysql。您可以通过`hersql`来假设一条从本地到测试环境的隧道，通过该隧道来转发Mysql数据包，从而在本地能够直接访问到之前无法访问到的Mysql。
+假设您的测试环境只对外开放了http(s)服务，因此在本地无法直接访问到测试环境的诸多Mysql。您可以通过`hersql`来架设一条从本地到测试环境的隧道，通过该隧道来转发Mysql数据包，从而在本地能够直接访问到之前无法访问到的Mysql。
 
 ![hersql架构](https://github.com/Orlion/hersql/blob/main/resources/architecture.png)
 
