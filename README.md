@@ -59,7 +59,7 @@ $ vim transport.example.yaml // 按照需求修改配置文件
 $ go run cmd/sidecar/main.go -conf=sidecar.example.yaml
 ```
 
-> 建议先编译为可执行文件然后由launchctl之类的工具托管transport进程，保证transport存活，这里简单起见直接用go run起来
+> 还是建议先编译为可执行文件然后由launchctl之类的工具托管sidecar进程，保证sidecar存活，这里简单起见直接用go run起来
 
 ## 4. 客户端连接
 
