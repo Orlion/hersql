@@ -104,5 +104,10 @@ server:
 * 服务器地址：127.0.0.1
 * 端口: 3306
 * 数据库名`root:123456@tcp(10.10.123.123:3306)/BlogDB`
+
+# 未能解决的问题
+1. 只支持mysql_native_password的身份认证插件，所以如果您使用的是mysql8并且身份认证插件选择的是默认的caching_sha2_password，那很遗憾目前还不支持。不过这是一个可解决的问题，后续可能会添加支持
+2. 桌面客户端一般提供了快速取消执行的按钮，会执行kill query {thread_id}的命令，由于握手协议的限制客户端拿到的并非真实mysql server端的thread_id，因此可能会出现意想不到的问题
+
 # 站在巨人的肩膀上
-本项目采用了[github.com/siddontang/mixer](https://github.com/siddontang/mixer)的mysql包下的代码，感谢
+本项目采用了[github.com/siddontang/mixer](https://github.com/siddontang/mixer)的mysql包下的代码，感谢。
