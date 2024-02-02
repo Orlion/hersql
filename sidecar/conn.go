@@ -168,6 +168,7 @@ func (c *Conn) writeInitialHandshake() error {
 	data = append(data, c.salt[8:]...)
 
 	//filter [00]
+	data = append(data, 0)
 	data = append(data, []byte(mysql.MysqlNativePassword)...)
 	data = append(data, 0)
 
