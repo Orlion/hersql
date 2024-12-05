@@ -46,7 +46,7 @@ func NewServer(conf *Config) (*Server, error) {
 		TransportClient: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: false,
+					InsecureSkipVerify: conf.InsecureSkipVerify,
 				},
 			},
 		},

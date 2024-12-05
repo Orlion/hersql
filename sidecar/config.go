@@ -3,8 +3,9 @@ package sidecar
 import "errors"
 
 type Config struct {
-	Addr          string `yaml:"addr"`
-	TransportAddr string `yaml:"transport_addr"`
+	Addr               string `yaml:"addr"`
+	TransportAddr      string `yaml:"transport_addr"`
+	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
 }
 
 func withDefaultConf(conf *Config) error {
