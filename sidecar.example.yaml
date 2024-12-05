@@ -2,6 +2,7 @@ server:
   # The address that the hersql sidecar server listens to. If it listens to tcp, the format is ip:port, for example, 127.0.0.1:2380
   addr: 127.0.0.1:3306
   transport_addr: http://127.0.0.1:8001
+  insecure_skip_verify: false
 
 log:
   # Stdout log level debug/info/warn/error/dpanic/panic/fatal
