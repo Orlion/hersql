@@ -42,7 +42,7 @@ func (s *Server) HandleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := conn.handshake(); err != nil {
 		rwc.Close()
-		responseFail(w, fmt.Sprintf("handle connect create conn failed: %s", err.Error()))
+		responseFail(w, fmt.Sprintf("handle connect handshake failed: %s", err.Error()))
 		return
 	}
 

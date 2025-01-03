@@ -8,13 +8,16 @@ const (
 
 const (
 	MysqlNativePassword = "mysql_native_password"
+	CachingSha2Password = "caching_sha2_password"
+	MysqlOldPassword    = "mysql_old_password"
 )
 
 const (
-	OK_HEADER          byte = 0x00
-	ERR_HEADER         byte = 0xff
-	EOF_HEADER         byte = 0xfe
-	LocalInFile_HEADER byte = 0xfb
+	OK_HEADER             byte = 0x00
+	AUTH_MORE_DATA_HEADER byte = 0x01
+	ERR_HEADER            byte = 0xff
+	EOF_HEADER            byte = 0xfe
+	LocalInFile_HEADER    byte = 0xfb
 )
 
 const (
@@ -90,4 +93,10 @@ const (
 	CLIENT_PLUGIN_AUTH
 	CLIENT_CONNECT_ATTRS
 	CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA
+)
+
+const (
+	CachingSha2PasswordRequestPublicKey          = 2
+	CachingSha2PasswordFastAuthSuccess           = 3
+	CachingSha2PasswordPerformFullAuthentication = 4
 )
