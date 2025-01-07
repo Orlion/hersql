@@ -40,11 +40,11 @@ func (c *Conn) serve() {
 
 		if c.transportConnId > 0 {
 			if err := c.transportDisconnect(); err != nil {
-				log.Errorw("conn serve transportDisconnect error occurred", "conn", c.name(), "error", err.Error())
+				log.Warnw("conn serve transportDisconnect error occurred", "conn", c.name(), "error", err.Error())
 			}
 		}
 		if err := c.close(); err != nil {
-			log.Errorw("conn serve close error occurred ", "conn", c.name(), "error", err.Error())
+			log.Warnw("conn serve close error occurred ", "conn", c.name(), "error", err.Error())
 		} else {
 			log.Infow("conn serve closed", "conn", c.name())
 		}
@@ -70,7 +70,7 @@ func (c *Conn) serve() {
 			if errors.Is(err, io.EOF) {
 				log.Infow("conn serve read closed", "conn", c.name())
 			} else {
-				log.Errorw("conn serve read packet error occurred", "conn", c.name(), "error", err.Error())
+				log.Warnw("conn serve read packet error occurred", "conn", c.name(), "error", err.Error())
 			}
 			break
 		}
@@ -282,5 +282,5 @@ func (c *Conn) close() error {
 }
 
 func (c *Conn) name() string {
-	return fmt.Sprintf("conn[id: %d, from %s, transportConnid: %d]", c.connId, c.remoteAddr, c.transportConnId)
+	return fmt.Sprintf("[id:%d, from:%s, transportConnid:%d]", c.connId, c.remoteAddr, c.transportConnId)
 }

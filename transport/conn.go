@@ -29,7 +29,7 @@ type Conn struct {
 	dbname     string
 }
 
-func (c *Conn) toString() string {
+func (c *Conn) name() string {
 	return fmt.Sprintf("id: %d, createAt: %s, capability: %d, collation: %d, status: %d, user: %s, dbname: %s", c.id, c.createAt.Format("2006-01-02 15:04:05"), c.capability, c.collation, c.status, c.user, c.dbname)
 }
 
@@ -44,17 +44,15 @@ func (c *Conn) handshake() error {
 		return fmt.Errorf("auth error: %w", err)
 	}
 
-	if err := c.writeHandshakeResponse(authResp); err != nil {
+	log.Debugw("conn handshake readInitialHandshake", "authData", authData, "plugin", plugin, "authResp", authResp, "connId", c.id)
+
+	if err := c.writeHandshakeResponse(authResp, plugin); err != nil {
 		return fmt.Errorf("writeHandshakeResponse error: %w", err)
 	}
 
 	// Handle response to auth packet, switch methods if possible
 	if err = c.handleAuthResult(authData, plugin); err != nil {
 		return fmt.Errorf("handleAuthResult error: %w", err)
-	}
-
-	if _, err := c.readOK(); err != nil {
-		return fmt.Errorf("readOK error: %w", err)
 	}
 
 	c.pkg.Sequence = 0
@@ -137,69 +135,76 @@ func (c *Conn) auth(authData []byte, plugin string) (authResp []byte, err error)
 	return
 }
 
-func (c *Conn) writeHandshakeResponse(authResp []byte) error {
+func (c *Conn) writeHandshakeResponse(authResp []byte, plugin string) error {
 	// Adjust exit capability flags based on exit support
-	capability := mysql.CLIENT_PROTOCOL_41 | mysql.CLIENT_SECURE_CONNECTION |
-		mysql.CLIENT_LONG_PASSWORD | mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_LONG_FLAG
+	capability := mysql.CLIENT_PROTOCOL_41 |
+		mysql.CLIENT_SECURE_CONNECTION |
+		mysql.CLIENT_LONG_PASSWORD |
+		mysql.CLIENT_TRANSACTIONS |
+		mysql.CLIENT_PLUGIN_AUTH |
+		c.capability&mysql.CLIENT_LONG_FLAG
 
-	capability &= c.capability
-
-	//packet length
-	//capbility 4
-	//max-packet size 4
-	//charset 1
-	//reserved all[0] 23
-	length := 4 + 4 + 1 + 23
-
-	//username
-	length += len(c.user) + 1
-
-	length += 1 + len(authResp)
-
-	if len(c.dbname) > 0 {
-		capability |= mysql.CLIENT_CONNECT_WITH_DB
-
-		length += len(c.dbname) + 1
+	// encode length of the auth plugin data
+	var authRespLEIBuf [9]byte
+	authRespLen := len(authResp)
+	authRespLEI := mysql.AppendLengthEncodedInteger(authRespLEIBuf[:0], uint64(authRespLen))
+	if len(authRespLEI) > 1 {
+		// if the length can not be written in 1 byte, it must be written as a
+		// length encoded integer
+		capability |= mysql.CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA
 	}
 
-	c.capability = capability
+	pktLen := 4 + 4 + 1 + 23 + len(c.user) + 1 + len(authRespLEI) + len(authResp) + 21 + 1
 
-	data := make([]byte, length+4)
+	// To specify a db name
+	if n := len(c.dbname); n > 0 {
+		capability |= mysql.CLIENT_CONNECT_WITH_DB
+		pktLen += n + 1
+	}
 
-	//capability [32 bit]
+	data := make([]byte, pktLen+4)
+
+	// ClientFlags [32 bit]
 	data[4] = byte(capability)
 	data[5] = byte(capability >> 8)
 	data[6] = byte(capability >> 16)
 	data[7] = byte(capability >> 24)
 
-	//MaxPacketSize [32 bit] (none)
-	//data[8] = 0x00
-	//data[9] = 0x00
-	//data[10] = 0x00
-	//data[11] = 0x00
+	// MaxPacketSize [32 bit] (none)
+	data[8] = 0x00
+	data[9] = 0x00
+	data[10] = 0x00
+	data[11] = 0x00
 
-	//Charset [1 byte]
-	data[12] = byte(c.collation)
+	data[12] = c.collation
 
-	//Filler [23 bytes] (all 0x00)
-	pos := 13 + 23
+	// Filler [23 bytes] (all 0x00)
+	pos := 13
+	for ; pos < 13+23; pos++ {
+		data[pos] = 0
+	}
 
-	//User [null terminated string]
+	// User [null terminated string]
 	if len(c.user) > 0 {
 		pos += copy(data[pos:], c.user)
 	}
-	//data[pos] = 0x00
+	data[pos] = 0x00
 	pos++
 
-	// auth [length encoded integer]
-	data[pos] = byte(len(authResp))
-	pos += 1 + copy(data[pos+1:], authResp)
+	// Auth Data [length encoded integer]
+	pos += copy(data[pos:], authRespLEI)
+	pos += copy(data[pos:], authResp)
 
-	// db [null terminated string]
+	// Databasename [null terminated string]
 	if len(c.dbname) > 0 {
 		pos += copy(data[pos:], c.dbname)
-		//data[pos] = 0x00
+		data[pos] = 0x00
+		pos++
 	}
+
+	pos += copy(data[pos:], plugin)
+	data[pos] = 0x00
+	pos++
 
 	return c.writePacket(data)
 }
@@ -209,8 +214,6 @@ func (c *Conn) handleAuthResult(oldAuthData []byte, plugin string) error {
 	if err != nil {
 		return fmt.Errorf("readAuthResult1 error: %w", err)
 	}
-
-	log.Debugw("handleAuthResult", "authData", authData, "newPlugin", newPlugin, "plugin", plugin)
 
 	if newPlugin != "" {
 		if authData == nil {

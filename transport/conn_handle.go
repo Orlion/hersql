@@ -16,7 +16,9 @@ func (c *Conn) transport(packet []byte) ([][]byte, error) {
 	cmd := packet[0]
 	switch cmd {
 	case mysql.COM_PING:
+		fallthrough
 	case mysql.COM_INIT_DB:
+		fallthrough
 	case mysql.COM_QUERY:
 		return c.handleQuery()
 	case mysql.COM_QUIT:
@@ -26,8 +28,6 @@ func (c *Conn) transport(packet []byte) ([][]byte, error) {
 	default:
 		return nil, mysql.NewError(mysql.ER_UNKNOWN_ERROR, fmt.Sprintf("command %d not supported now", cmd))
 	}
-
-	return nil, nil
 }
 
 func (c *Conn) handleQuery() ([][]byte, error) {

@@ -70,3 +70,19 @@ func LengthEncodedInt(b []byte) (num uint64, isNull bool, n int) {
 	n = 1
 	return
 }
+
+// encodes a uint64 value and appends it to the given bytes slice
+func AppendLengthEncodedInteger(b []byte, n uint64) []byte {
+	switch {
+	case n <= 250:
+		return append(b, byte(n))
+
+	case n <= 0xffff:
+		return append(b, 0xfc, byte(n), byte(n>>8))
+
+	case n <= 0xffffff:
+		return append(b, 0xfd, byte(n), byte(n>>8), byte(n>>16))
+	}
+	return append(b, 0xfe, byte(n), byte(n>>8), byte(n>>16), byte(n>>24),
+		byte(n>>32), byte(n>>40), byte(n>>48), byte(n>>56))
+}

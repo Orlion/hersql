@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Orlion/hersql/log"
@@ -23,10 +24,9 @@ func NewServer(conf *Config) *Server {
 	withDefaultConf(conf)
 
 	s := &Server{
-		runid:      strconv.FormatInt(time.Now().UnixNano(), 10),
-		Addr:       conf.Addr,
-		conns:      make(map[uint64]*Conn),
-		nextConnId: 1,
+		runid: strconv.FormatInt(time.Now().UnixNano(), 10),
+		Addr:  conf.Addr,
+		conns: make(map[uint64]*Conn),
 	}
 
 	serveMux := http.NewServeMux()
@@ -62,16 +62,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return err
 }
 
-func (s *Server) addConn(conn *Conn) uint64 {
+func (s *Server) addConn(conn *Conn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	conn.id = s.nextConnId
 	s.conns[conn.id] = conn
+}
 
-	s.nextConnId++
-
-	return conn.id
+func (s *Server) genConnId() uint64 {
+	return atomic.AddUint64(&s.nextConnId, 1)
 }
 
 func (s *Server) delConn(connId uint64) {
