@@ -1,9 +1,8 @@
 package mysql
 
 const (
-	MinProtocolVersion byte   = 10
-	ServerVersion      string = "5.7.1-hersql-0.1"
-	MaxPayloadLen      int    = 1<<24 - 1
+	MinProtocolVersion byte = 10
+	MaxPayloadLen      int  = 1<<24 - 1
 )
 
 const (
@@ -93,6 +92,9 @@ const (
 	CLIENT_PLUGIN_AUTH
 	CLIENT_CONNECT_ATTRS
 	CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA
+	CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS
+	CLIENT_SESSION_TRACK
+	CLIENT_DEPRECATE_EOF
 )
 
 const (

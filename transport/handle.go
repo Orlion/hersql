@@ -90,30 +90,33 @@ func (s *Server) HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HandleTransport(w http.ResponseWriter, r *http.Request) {
 	runid := r.PostFormValue("runid")
 	if runid != s.runid {
-		responseFail(w, "handle transport the runid does not match, the server may have been restarted, please try to reconnect")
+		responseFail(w, "handleTransport the runid does not match, the server may have been restarted, please try to reconnect")
 		return
 	}
 	connIdStr := r.PostFormValue("connId")
 	connId, err := strconv.ParseUint(connIdStr, 10, 64)
 	if err != nil {
-		responseFail(w, fmt.Sprintf("handle transport connId %s parse error: %s", connIdStr, err.Error()))
+		responseFail(w, fmt.Sprintf("handleTransport connId %s parse error: %s", connIdStr, err.Error()))
 		return
 	}
 	packet := r.PostFormValue("packet")
 
 	conn, exists := s.getConn(connId)
 	if !exists {
-		responseFail(w, fmt.Sprintf("handle transport conn %d not found, please try reconnect", connId))
+		responseFail(w, fmt.Sprintf("handleTransport conn %d not found, please try reconnect", connId))
 		return
 	}
+
+	log.Infow("handleTransport request", "connId", connId, "cmd", mysql.Cmd2Str(packet[0]), "length", len(packet))
 
 	responsePackets, err := conn.transport([]byte(packet))
 	if err != nil {
-		responseFail(w, fmt.Sprintf("handle transport conn %d transport: %s", connId, err.Error()))
+		log.Warnw("handleTransport fail", "connId", connId, "cmd", mysql.Cmd2Str(packet[0]), "length", len(packet), "responsePacketsNum", len(responsePackets), "err", err)
+		responseFail(w, fmt.Sprintf("handleTransport error: %s", err.Error()))
 		return
 	}
 
-	log.Infow("handle transport", "connId", connId, "cmd", mysql.Cmd2Str(packet[0]), "length", len(packet), "responsePacketsNum", len(responsePackets))
+	log.Infow("handleTransport success", "connId", connId, "cmd", mysql.Cmd2Str(packet[0]), "length", len(packet), "responsePacketsNum", len(responsePackets))
 
 	transportResponse(w, responsePackets)
 }

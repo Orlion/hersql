@@ -86,7 +86,7 @@ func (c *Conn) callTransport(path string, form url.Values) ([]byte, error) {
 	var (
 		body []byte
 	)
-	resp, err := c.server.TransportClient.PostForm(c.server.TransportAddr+path, form)
+	resp, err := c.server.transportClient.PostForm(c.server.transportAddr+path, form)
 	if err != nil {
 		return nil, err
 	}

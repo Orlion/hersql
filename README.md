@@ -40,6 +40,10 @@ server:
   addr: 127.0.0.1:3306
   # transport http server的地址
   transport_addr: http://x.x.x.x:xxxx
+  # 请求transport时是否绕过证书验证
+  insecure_skip_verify: false
+  # sidecar伪装mysql服务器版本，不同的mysql server版本有不同的特性，客户端可能会依赖mysql server版本，所以请尽量与被代理的mysql server保持相同的版本
+  version: 8.0.11-hersql-0.1.0
 log:
   # 与sidecar配置相同
 ```
@@ -105,9 +109,11 @@ server:
 * 端口: 3306
 * 数据库名`root:123456@tcp(10.10.123.123:3306)/BlogDB`
 
-# 未能解决的问题
-1. 只支持mysql_native_password的身份认证插件，所以如果您使用的是mysql8并且身份认证插件选择的是默认的caching_sha2_password，那很遗憾目前还不支持。不过这是一个可解决的问题，后续可能会添加支持
-2. 桌面客户端一般提供了快速取消执行的按钮，会执行kill query {thread_id}的命令，由于握手协议的限制客户端拿到的并非真实mysql server端的thread_id，因此可能会出现意想不到的问题
+
+# 一些已知问题
+1. 桌面客户端一般提供了快速取消执行的按钮，会执行kill query {thread_id}的命令，由于握手协议的限制客户端拿到的并非真实mysql server端的thread_id，因此可能会出现意想不到的问题
+2. TablePlus 会忽略服务端的`CLIENT_DEPRECATE_EOF` Capability Flag，可能会导致一些包识别的问题；TablePlus会使用连接配置中的`Database`作为数据库执行类似于`SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = '{Database}';`这样的SQL，但是`Database`我们又要求填写成`[username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]`这样的格式，因此TablePlus上无法显示所有表
+3. DBeaver 上如果被代理的mysql server版本为8.0+，而在sidecar.yaml中配置的server.version为\<8.0的版本，那么会报一些类似于`Unknown system variable 'query_cache_size'`这样高低版本不同导致的问题
 
 # 站在巨人的肩膀上
 本项目采用了[github.com/siddontang/mixer](https://github.com/siddontang/mixer)的mysql包下的代码，感谢。
