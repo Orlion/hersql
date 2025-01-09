@@ -27,13 +27,14 @@ func genConnId() uint32 {
 
 type Server struct {
 	mu              sync.Mutex
+	version         string
 	listener        net.Listener
 	connNum         int64
 	inShutdown      atomicx.Bool
 	doneChan        chan struct{}
-	Addr            string
-	TransportAddr   string
-	TransportClient *http.Client
+	addr            string
+	transportAddr   string
+	transportClient *http.Client
 }
 
 func NewServer(conf *Config) (*Server, error) {
@@ -41,9 +42,10 @@ func NewServer(conf *Config) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		Addr:          conf.Addr,
-		TransportAddr: conf.TransportAddr,
-		TransportClient: &http.Client{
+		version:       conf.Version,
+		addr:          conf.Addr,
+		transportAddr: conf.TransportAddr,
+		transportClient: &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
 					InsecureSkipVerify: conf.InsecureSkipVerify,
@@ -54,7 +56,7 @@ func NewServer(conf *Config) (*Server, error) {
 }
 
 func (s *Server) ListenAndServe() (err error) {
-	s.listener, err = net.Listen("tcp", s.Addr)
+	s.listener, err = net.Listen("tcp", s.addr)
 	if err != nil {
 		return
 	}
@@ -99,7 +101,7 @@ func (s *Server) closeDoneChanLocked() {
 }
 
 func (s *Server) serve() error {
-	log.Infow("server serve", "addr", s.Addr)
+	log.Infow("server serve", "addr", s.addr, "version", s.version)
 
 	var tempDelay time.Duration // how long to sleep on accept failure
 

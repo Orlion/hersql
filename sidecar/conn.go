@@ -15,7 +15,8 @@ import (
 
 var DEFAULT_CAPABILITY uint32 = mysql.CLIENT_LONG_PASSWORD | mysql.CLIENT_LONG_FLAG |
 	mysql.CLIENT_CONNECT_WITH_DB | mysql.CLIENT_PROTOCOL_41 |
-	mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_SECURE_CONNECTION | mysql.CLIENT_PLUGIN_AUTH
+	mysql.CLIENT_TRANSACTIONS | mysql.CLIENT_SECURE_CONNECTION |
+	mysql.CLIENT_PLUGIN_AUTH
 
 type Conn struct {
 	connId          uint32
@@ -40,11 +41,11 @@ func (c *Conn) serve() {
 
 		if c.transportConnId > 0 {
 			if err := c.transportDisconnect(); err != nil {
-				log.Errorw("conn serve transportDisconnect error occurred", "conn", c.name(), "error", err.Error())
+				log.Warnw("conn serve transportDisconnect error occurred", "conn", c.name(), "error", err.Error())
 			}
 		}
 		if err := c.close(); err != nil {
-			log.Errorw("conn serve close error occurred ", "conn", c.name(), "error", err.Error())
+			log.Warnw("conn serve close error occurred ", "conn", c.name(), "error", err.Error())
 		} else {
 			log.Infow("conn serve closed", "conn", c.name())
 		}
@@ -70,7 +71,7 @@ func (c *Conn) serve() {
 			if errors.Is(err, io.EOF) {
 				log.Infow("conn serve read closed", "conn", c.name())
 			} else {
-				log.Errorw("conn serve read packet error occurred", "conn", c.name(), "error", err.Error())
+				log.Warnw("conn serve read packet error occurred", "conn", c.name(), "error", err.Error())
 			}
 			break
 		}
@@ -133,7 +134,7 @@ func (c *Conn) writeInitialHandshake() error {
 	data = append(data, 10)
 
 	//exit version[00]
-	data = append(data, mysql.ServerVersion...)
+	data = append(data, c.server.version...)
 	data = append(data, 0)
 
 	// thread id
@@ -282,5 +283,5 @@ func (c *Conn) close() error {
 }
 
 func (c *Conn) name() string {
-	return fmt.Sprintf("conn[id: %d, from %s, transportConnid: %d]", c.connId, c.remoteAddr, c.transportConnId)
+	return fmt.Sprintf("[id:%d, from:%s, transportConnid:%d]", c.connId, c.remoteAddr, c.transportConnId)
 }

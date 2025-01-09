@@ -1,20 +1,22 @@
 package mysql
 
 const (
-	MinProtocolVersion byte   = 10
-	ServerVersion      string = "5.7.1-hersql-0.1"
-	MaxPayloadLen      int    = 1<<24 - 1
+	MinProtocolVersion byte = 10
+	MaxPayloadLen      int  = 1<<24 - 1
 )
 
 const (
 	MysqlNativePassword = "mysql_native_password"
+	CachingSha2Password = "caching_sha2_password"
+	MysqlOldPassword    = "mysql_old_password"
 )
 
 const (
-	OK_HEADER          byte = 0x00
-	ERR_HEADER         byte = 0xff
-	EOF_HEADER         byte = 0xfe
-	LocalInFile_HEADER byte = 0xfb
+	OK_HEADER             byte = 0x00
+	AUTH_MORE_DATA_HEADER byte = 0x01
+	ERR_HEADER            byte = 0xff
+	EOF_HEADER            byte = 0xfe
+	LocalInFile_HEADER    byte = 0xfb
 )
 
 const (
@@ -90,4 +92,84 @@ const (
 	CLIENT_PLUGIN_AUTH
 	CLIENT_CONNECT_ATTRS
 	CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA
+	CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS
+	CLIENT_SESSION_TRACK
+	CLIENT_DEPRECATE_EOF
 )
+
+const (
+	CachingSha2PasswordRequestPublicKey          = 2
+	CachingSha2PasswordFastAuthSuccess           = 3
+	CachingSha2PasswordPerformFullAuthentication = 4
+)
+
+func Cmd2Str(cmd byte) string {
+	switch cmd {
+	case COM_SLEEP:
+		return "COM_SLEEP"
+	case COM_QUIT:
+		return "COM_QUIT"
+	case COM_INIT_DB:
+		return "COM_INIT_DB"
+	case COM_QUERY:
+		return "COM_QUERY"
+	case COM_FIELD_LIST:
+		return "COM_FIELD_LIST"
+	case COM_CREATE_DB:
+		return "COM_CREATE_DB"
+	case COM_DROP_DB:
+		return "COM_DROP_DB"
+	case COM_REFRESH:
+		return "COM_REFRESH"
+	case COM_SHUTDOWN:
+		return "COM_SHUTDOWN"
+	case COM_STATISTICS:
+		return "COM_STATISTICS"
+	case COM_PROCESS_INFO:
+		return "COM_PROCESS_INFO"
+	case COM_CONNECT:
+		return "COM_CONNECT"
+	case COM_PROCESS_KILL:
+		return "COM_PROCESS_KILL"
+	case COM_DEBUG:
+		return "COM_DEBUG"
+	case COM_PING:
+		return "COM_PING"
+	case COM_TIME:
+		return "COM_TIME"
+	case COM_DELAYED_INSERT:
+		return "COM_DELAYED_INSERT"
+	case COM_CHANGE_USER:
+		return "COM_CHANGE_USER"
+	case COM_BINLOG_DUMP:
+		return "COM_BINLOG_DUMP"
+	case COM_TABLE_DUMP:
+		return "COM_TABLE_DUMP"
+	case COM_CONNECT_OUT:
+		return "COM_CONNECT_OUT"
+	case COM_REGISTER_SLAVE:
+		return "COM_REGISTER_SLAVE"
+	case COM_STMT_PREPARE:
+		return "COM_STMT_PREPARE"
+	case COM_STMT_EXECUTE:
+		return "COM_STMT_EXECUTE"
+	case COM_STMT_SEND_LONG_DATA:
+		return "COM_STMT_SEND_LONG_DATA"
+	case COM_STMT_CLOSE:
+		return "COM_STMT_CLOSE"
+	case COM_STMT_RESET:
+		return "COM_STMT_RESET"
+	case COM_SET_OPTION:
+		return "COM_SET_OPTION"
+	case COM_STMT_FETCH:
+		return "COM_STMT_FETCH"
+	case COM_DAEMON:
+		return "COM_DAEMON"
+	case COM_BINLOG_DUMP_GTID:
+		return "COM_BINLOG_DUMP_GTID"
+	case COM_RESET_CONNECTION:
+		return "COM_RESET_CONNECTION"
+	default:
+		return "COM_UNKNOWN"
+	}
+}

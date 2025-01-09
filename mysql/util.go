@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"crypto/sha1"
 	"math/rand"
 	"time"
 )
@@ -34,35 +33,6 @@ func PutLengthEncodedInt(n uint64) []byte {
 			byte(n >> 32), byte(n >> 40), byte(n >> 48), byte(n >> 56)}
 	}
 	return nil
-}
-
-func CalcPassword(scramble, password []byte) []byte {
-	if len(password) == 0 {
-		return nil
-	}
-
-	// stage1Hash = SHA1(password)
-	crypt := sha1.New()
-	crypt.Write(password)
-	stage1 := crypt.Sum(nil)
-
-	// scrambleHash = SHA1(scramble + SHA1(stage1Hash))
-	// inner Hash
-	crypt.Reset()
-	crypt.Write(stage1)
-	hash := crypt.Sum(nil)
-
-	// outer Hash
-	crypt.Reset()
-	crypt.Write(scramble)
-	crypt.Write(hash)
-	scramble = crypt.Sum(nil)
-
-	// token = scrambleHash XOR stage1Hash
-	for i := range scramble {
-		scramble[i] ^= stage1[i]
-	}
-	return scramble
 }
 
 func LengthEncodedInt(b []byte) (num uint64, isNull bool, n int) {
@@ -99,4 +69,20 @@ func LengthEncodedInt(b []byte) (num uint64, isNull bool, n int) {
 	num = uint64(b[0])
 	n = 1
 	return
+}
+
+// encodes a uint64 value and appends it to the given bytes slice
+func AppendLengthEncodedInteger(b []byte, n uint64) []byte {
+	switch {
+	case n <= 250:
+		return append(b, byte(n))
+
+	case n <= 0xffff:
+		return append(b, 0xfc, byte(n), byte(n>>8))
+
+	case n <= 0xffffff:
+		return append(b, 0xfd, byte(n), byte(n>>8), byte(n>>16))
+	}
+	return append(b, 0xfe, byte(n), byte(n>>8), byte(n>>16), byte(n>>24),
+		byte(n>>32), byte(n>>40), byte(n>>48), byte(n>>56))
 }

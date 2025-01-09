@@ -6,6 +6,7 @@ type Config struct {
 	Addr               string `yaml:"addr"`
 	TransportAddr      string `yaml:"transport_addr"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
+	Version            string `yaml:"version"`
 }
 
 func withDefaultConf(conf *Config) error {
@@ -14,11 +15,15 @@ func withDefaultConf(conf *Config) error {
 	}
 
 	if conf.Addr == "" {
-		conf.Addr = "127.0.0.1:3306"
+		conf.Addr = DefaultServerAddr
 	}
 
 	if conf.TransportAddr == "" {
 		return errors.New("transport_addr configuration cannot be empty")
+	}
+
+	if conf.Version == "" {
+		conf.Version = DefaultServerVersion
 	}
 
 	return nil

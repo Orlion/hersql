@@ -3,6 +3,7 @@ server:
   addr: 127.0.0.1:3306
   transport_addr: http://127.0.0.1:8001
   insecure_skip_verify: false
+  version: 8.0.11-hersql-0.1.0
 
 log:
   # Stdout log level debug/info/warn/error/dpanic/panic/fatal
